@@ -1,0 +1,18 @@
+{
+  "name": "Costa Oeste de motorhome",
+  "short_name": "Motorhome",
+  "description": "Mapa da viagem de motorhome pela Costa Oeste dos EUA (19/10 a 01/11/2026).",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f6f1",
+  "theme_color": "#1e5d86",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

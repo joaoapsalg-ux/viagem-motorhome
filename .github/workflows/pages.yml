@@ -1,0 +1,44 @@
+# Publica o app no GitHub Pages a cada push na main (ou pelo botão "Run workflow").
+# Vão para o site: index.html, sw.js, manifesto, src/, data/ e icons/. O __VERSAO__ do sw.js vira o commit, para o
+# celular trocar o app guardado pela versão nova.
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          cp index.html sw.js manifest.webmanifest _site/
+          cp -r src data icons _site/
+          sed -i "s/__VERSAO__/${GITHUB_SHA::8}/" _site/sw.js
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
