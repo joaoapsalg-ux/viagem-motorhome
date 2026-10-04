@@ -9,7 +9,7 @@ const VALIDADE = 3 * 3600e3;     // depois de 3 h, renova se houver sinal
 const JANELA = 16;               // dias de previsão (hoje + 15)
 const FRIO = 0, CALOR = 35, VENTO = 60;   // °C, °C, km/h
 // pontos de passagem com clima próprio (aparecem quando estão nas paradas do dia em uso)
-const PASSAGEM = { 9: [{ id: 'tioga_pass', nome: 'Tioga Pass', tioga: true }, { id: 'badwater', nome: 'Badwater' }] };
+const PASSAGEM = { 9: [{ id: 'tioga_pass', nome: 'Tioga Pass', em: 'na Tioga Pass', tioga: true }, { id: 'badwater', nome: 'Badwater', em: 'em Badwater' }] };
 
 // ícones do tempo (traço 24×24, como os do app)
 const NUVEM = (y = 0) => `<path d="M6.5 ${14 + y}h11a3.5 3.5 0 0 0 .3-7 5.5 5.5 0 0 0-10.4 1.4A2.9 2.9 0 0 0 6.5 ${14 + y}Z"/>`;
@@ -38,6 +38,7 @@ const TEMPO = {
 
 let ctx, U;
 let normais = null;     // data/clima.json (null enquanto não carregou ou se ainda não foi gerado)
+let estadoNormais = 'carregando';   // 'ok' | 'vazio' (arquivo sem lugares) | 'erro' (não carregou)
 let prev = null;        // { em, ids, locais: { id: { elev, t, max, min, prob, mm, cm, raj, cod } } }
 let buscando = false, falhou = false, ouvindo = false;
 let tentou = 0;         // hora do último pedido (depois de uma falha, espera 2 min para tentar de novo)
@@ -122,7 +123,8 @@ async function carregarNormais() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     normais = j?.lugares && Object.keys(j.lugares).length ? j : null;
-  } catch (e) { console.warn('clima (normais):', e.message ?? e); }
+    estadoNormais = normais ? 'ok' : 'vazio';
+  } catch (e) { estadoNormais = 'erro'; console.warn('clima (normais):', e.message ?? e); }
   redesenhar();
 }
 function normalDe(id, iso) {
@@ -142,10 +144,11 @@ function climaDe(id, iso, { noite = false } = {}) {
   return nm ? { tipo: 'normal', ...nm, noite: nm.min } : { tipo: 'nada' };
 }
 const climaDoDia = (d) => climaDe(ctx.ativo(d).pernoite.ponto, d.data, { noite: true });
-/** pontos de passagem do dia que estão na rota em uso */
+/** pontos de passagem do dia que estão na rota em uso, na ordem do caminho */
 function passagens(d) {
   const par = ctx.ativo(d).paradas;
-  return (PASSAGEM[d.n] ?? []).filter((x) => par.includes(x.id)).map((x) => ({ ...x, c: climaDe(x.id, d.data) })).filter((x) => x.c.tipo !== 'nada');
+  return (PASSAGEM[d.n] ?? []).filter((x) => par.includes(x.id)).sort((a, b) => par.indexOf(a.id) - par.indexOf(b.id))
+    .map((x) => ({ ...x, c: climaDe(x.id, d.data) })).filter((x) => x.c.tipo !== 'nada');
 }
 
 // ---------- avisos ----------
@@ -169,13 +172,14 @@ function avisos(d, c, extras) {
     const e = x.c, planoB = d.planoB && !ctx.usaB(d.n) ? ' <button type="button" class="lnk" data-clima-planob>Veja o plano B</button>.' : '';
     if (x.tioga) {
       // neve no dia ou na véspera pode fechar a estrada
-      const cm = e.tipo === 'prev' ? (e.cm ?? 0) + (prevDe(x.id, maisDias(d.data, -1))?.cm ?? 0) : 0;
-      if (e.tipo === 'prev' && cm > 0) L.unshift([true, `<b>Neve prevista na Tioga Pass (${U.nf(cm, 1)} cm): risco de a Tioga fechar.</b>${planoB}`]);
+      const vesp = e.tipo === 'prev' ? (prevDe(x.id, maisDias(d.data, -1))?.cm ?? 0) : 0;
+      const cm = e.tipo === 'prev' ? (e.cm ?? 0) + vesp : 0;
+      if (cm > 0) L.unshift([true, `<b>Neve prevista na Tioga Pass (${U.nf(cm, 1)} cm${vesp > 0 ? ' entre a véspera e o dia' : ''}): risco de a Tioga fechar.</b>${planoB}`]);
       else if (e.tipo === 'normal' && e.neve > 0) L.unshift([false, `<b>Neva em ${Math.round(e.neve)}% dos dias nesta época na Tioga Pass: risco de a Tioga fechar.</b>${planoB}`]);
     }
     const calor = e.tipo === 'prev' ? e.max >= CALOR : e.max_abs >= CALOR;
-    if (calor) L.push([false, `<b>Calor em ${x.nome}: ${e.tipo === 'prev' ? grau(e.max) : `já fez ${grau(e.max_abs)} nesta época`}.</b> ${TXT_CALOR}`]);
-    if (e.tipo === 'prev' && e.raj >= VENTO) L.push([false, `<b>Rajadas de até ${Math.round(e.raj)} km/h em ${x.nome}.</b> ${TXT_VENTO}`]);
+    if (calor) L.push([false, `<b>Calor ${x.em}: ${e.tipo === 'prev' ? grau(e.max) : `já fez ${grau(e.max_abs)} nesta época`}.</b> ${TXT_CALOR}`]);
+    if (e.tipo === 'prev' && e.raj >= VENTO) L.push([false, `<b>Rajadas de até ${Math.round(e.raj)} km/h ${x.em}.</b> ${TXT_VENTO}`]);
   }
   return L.map(([forte, h]) => `<p class="cc-warn${forte ? ' cc-warn--ov' : ''}">${h}</p>`).join('');
 }
@@ -229,17 +233,20 @@ function htmlBloco(d) {
     const falta = passou ? '' : inicioPrev > ctx.HOJE ? `Previsão a partir de ${ddmm(inicioPrev)}`
       : buscando ? 'Buscando a previsão…' : !navigator.onLine ? 'Sem sinal para buscar a previsão' : falhou ? 'A previsão não veio agora' : '';
     sub = [c.tipo === 'normal' ? `média de ${anos()}` : '', falta].filter(Boolean).join(' · ');
-    if (c.tipo === 'nada') sub = [falta, 'a normal da época ainda não foi calculada'].filter(Boolean).join(' · ');
+    if (c.tipo === 'nada') {
+      const motivo = { vazio: 'a normal da época ainda não foi calculada', erro: 'a normal da época não carregou' }[estadoNormais];
+      sub = [falta, motivo].filter(Boolean).join(' · ');
+    }
   }
   const nota = c.tipo === 'prev'
     ? `Previsão Open-Meteo para o ponto do pernoite. Noite = mínima ${c.noiteDoDia ? 'do dia (a madrugada seguinte ainda não entrou na previsão)' : 'da madrugada seguinte'}. Muda de um dia para o outro: confira na véspera.`
-    : c.tipo === 'normal' ? `Normal = média de ${anos()} em ±${normais.janela_dias ?? 3} dias desta data (ERA5, ajustada pela altitude). É uma estimativa, não previsão.` : '';
+    : c.tipo === 'normal' ? `Normal = média de ${anos()} em ±${normais.janela_dias ?? 3} dias desta data (ERA5, ajustada pela altitude). É uma estimativa, não previsão: o modelo suaviza as madrugadas, e em vale ou montanha costuma fazer alguns graus a menos.` : '';
   return `<section class="blk clima" id="clima-${d.n}">
     <h3>Clima no pernoite <span>${U.esc(pn.nome)}</span></h3>
     <div class="clima-top"><i class="clima-ic${c.tipo === 'prev' ? '' : ' is-normal'}">${ic}</i>
       <div><b>${titulo}</b><small>${U.esc(sub)}</small></div></div>
     ${c.tipo === 'nada' ? '' : htmlNumeros(c)}
-    ${extras.length ? `<ul class="clima-extra" aria-label="No caminho">${extras.map(htmlPassagem).join('')}</ul>` : ''}
+    ${extras.length ? `<h4 class="clima-h" id="clima-cam-${d.n}">No caminho</h4><ul class="clima-extra" aria-labelledby="clima-cam-${d.n}">${extras.map(htmlPassagem).join('')}</ul>` : ''}
     ${avisos(d, c, extras)}
     ${nota ? `<p class="cc-note">${nota}</p>` : ''}</section>`;
 }
@@ -283,6 +290,7 @@ const CSS = `
   .clima-num dd small { display: block; margin-top: 2px; font: 500 10.5px/1.2 var(--f-body); color: var(--ink-soft); }
   .clima-num .is-frio dd { color: var(--hydro); }
   .clima-num .is-quente dd { color: var(--g-alta); }
+  .clima-h { margin: 2px 0 -2px; font: 600 10.5px/1.2 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
   .clima-extra { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
   .clima-extra li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 6px 9px; border-radius: 8px; border: 1px dashed var(--panel-line); font-size: 13.5px; }
   .clima-extra b { font: 700 14px/1.2 var(--f-display); letter-spacing: .03em; text-transform: uppercase; }
@@ -316,9 +324,10 @@ export function iniciar(c) {
     },
     aoSinal: (online) => { if (online && velha()) buscar({ forcar: true }); else redesenhar(); },
   });
-  carregarNormais();
   if (velha()) buscar();
   // app aberto por muito tempo: confere ao voltar para ele e a cada 30 min
   document.addEventListener('visibilitychange', () => { if (!document.hidden && velha()) buscar(); });
   setInterval(() => { if (!document.hidden && velha()) buscar(); }, 30 * 60e3);
+  // a normal vem do próprio app (casco offline): espera por ela para a primeira ficha já sair completa
+  return carregarNormais();
 }

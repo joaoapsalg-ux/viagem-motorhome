@@ -22,7 +22,7 @@ const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const CAMBIO_PADRAO = 5.10, EXTRA_PADRAO = 5;
 
 const ESTILO = `
-#mod-gastos { display: grid; gap: 14px; min-width: 0; }
+#mod-gastos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }   /* texto comprido não alarga o painel */
 .gastos-form { gap: 12px; }
 .gastos-form.is-edit { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
 .gastos-campo { display: grid; gap: 5px; min-width: 0; align-content: start; }
@@ -37,7 +37,7 @@ const ESTILO = `
 .gastos-sim { font: 600 18px/1 var(--f-display); color: var(--ink-soft); }
 .gastos-campo .gastos-vbox input { all: unset; flex: 1; min-width: 0; width: 100%; font: 500 26px/1.2 var(--f-data); color: var(--ink); padding: 8px 0; }
 .gastos-vbox input::placeholder { color: color-mix(in srgb, var(--ink-soft) 65%, transparent); }
-.gastos-form .seg2 label, .gastos-orc .seg2 label, .gastos-resumo .seg2 label { padding: 13px 4px; }
+.gastos-form .seg2 label, .gastos-orc .seg2 label, .gastos-resumo .seg2 label { padding: 14px 4px; }   /* 40 px de altura no celular */
 .gastos-form .gastos-moeda label { padding: 19px 4px; font-size: 14px; }
 .gastos-fs { border: 0; margin: 0; padding: 0; min-width: 0; }
 #mod-gastos .seg2 { position: relative; }   /* os rádios escondidos ficam dentro (o foco do teclado rola até eles) */
@@ -133,7 +133,7 @@ const ESTILO = `
 .gastos-msg textarea { display: block; width: 100%; box-sizing: border-box; min-height: 140px; margin-top: 6px; font: 12px/1.4 var(--f-data); color: var(--ink); background: var(--panel); border: 1px solid var(--panel-line); border-radius: 6px; padding: 6px; }
 
 .gastos-barra { position: sticky; bottom: 10px; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 10px; background: var(--ink); color: var(--panel); box-shadow: var(--shadow); }
-.gastos-barra p { margin: 0; flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; }
+.gastos-barra p { margin: 0; flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; overflow-wrap: anywhere; }
 .gastos-barra button { all: unset; cursor: pointer; flex: 0 0 auto; min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--panel) 45%, transparent); font: 600 13px/40px var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
 .gastos-barra button:hover { background: color-mix(in srgb, var(--panel) 14%, transparent); }
 .gastos-barra button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -147,6 +147,7 @@ const ESTILO = `
 .gastos-blk-mais summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 .gastos-blk-mais ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
 .gastos-blk-mais li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13.5px; }
+.gastos-blk-mais li > span { min-width: 0; overflow-wrap: anywhere; }
 .gastos-blk-mais li b { font: 500 13px var(--f-data); white-space: nowrap; }
 .gastos-blk-mais .gastos-ic { width: 26px; height: 26px; border-radius: 7px; }
 .gastos-blk-mais .gastos-ic svg { width: 16px; height: 16px; }
@@ -176,12 +177,17 @@ export function iniciar(ctx) {
 
   // ---------- guardado no aparelho ----------
   const ler = (k, padrao) => { try { return JSON.parse(store.get(k) ?? 'null') ?? padrao; } catch { return padrao; } };
+  // o "Juntar" do Preparar grava os gastos direto no aparelho (na mesma aba não há evento 'storage'): antes de desenhar
+  // ou mudar, confere se o guardado mudou e relê; senão, o próximo lançamento gravaria por cima do que entrou
+  const assinatura = () => ['gastos.lista', 'gastos.cambio', 'gastos.orcamento'].map((k) => store.get(k) ?? '').join('\n');
+  let lido = '';
   // o store engole o erro (armazenamento cheio ou bloqueado): confere o que ficou e avisa uma vez
   let falhou = false;
   const gravar = (k, v) => {
     const s = JSON.stringify(v);
     store.set(k, s);
     const ok = store.get(k) === s;
+    lido = assinatura();   // se não gravou, o que está na memória continua valendo (não relê o antigo)
     if (!ok && !falhou) ctx.aviso('Não deu para guardar os gastos neste aparelho (armazenamento cheio ou bloqueado). Baixe o CSV para não perder.');
     falhou = !ok;
   };
@@ -212,7 +218,17 @@ export function iniciar(ctx) {
   let cambio = lerCambio();
   let orc = lerOrc();
   let ver = store.get('gastos.ver') === 'BRL' ? 'BRL' : 'USD';   // moeda do resumo
+  lido = assinatura();
   const salvarLista = () => gravar('gastos.lista', lista);
+  /** relê o guardado se outra parte do app (ou outra aba) mudou; devolve true se mudou */
+  function sincronizar() {
+    const a = assinatura();
+    if (a === lido) return false;
+    lido = a;
+    lista = lerLista(); cambio = lerCambio(); orc = lerOrc();
+    if (editando && !lista.some((x) => x.id === editando)) limparForm();
+    return true;
+  }
 
   // ---------- números ----------
   /** "1.234,56", "1234.56", "45,9", "US$ 12" → número (null se não der) */
@@ -279,6 +295,7 @@ export function iniciar(ctx) {
   // ---------- bloco na ficha do dia ----------
   let blocoAberto = false;   // "ver os lançamentos" aberto (sobrevive ao redesenho do bloco)
   function htmlBloco(d) {
+    sincronizar();
     const gs = lista.filter((g) => g.dia === d.n).sort((a, b) => a.em - b.em);
     const itens = gs.map((g) => `<li><i class="gastos-ic" aria-hidden="true">${CAT[g.cat].ic}</i><span>${quebra(g.desc || CAT[g.cat].nome)}</span><b>${din(g.valor, g.moeda)}</b></li>`).join('');
     return `<section class="blk gastos-blk" id="gastos-blk"><h3>Gastos do dia <span>${gs.length ? plural(gs.length, 'lançamento', 'lançamentos') : ''}</span></h3>
@@ -428,7 +445,7 @@ export function iniciar(ctx) {
   function legendaDia(n) {
     const c = colunas.find((x) => x.n === n), cap = q('#gastos-dcap');
     if (!c || !cap) return;
-    cap.textContent = `${rotuloDia(n)}: ${din(c.v)} em ${plural(c.k, 'lançamento', 'lançamentos')}.`;
+    cap.textContent = c.k ? `${rotuloDia(n)}: ${din(c.v)} em ${plural(c.k, 'lançamento', 'lançamentos')}.` : `${rotuloDia(n)}: nada lançado.`;
     sec.querySelectorAll('[data-gastos-dcol]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.gastosDcol === n)));
   }
 
@@ -456,6 +473,7 @@ export function iniciar(ctx) {
 
   /** redesenha o que depende da lista, do câmbio e do orçamento (o formulário e os campos ficam) */
   function desenhar() {
+    sincronizar();
     if (sec) {
       q('#gastos-totais').innerHTML = htmlTotais();
       q('#gastos-por-cat').innerHTML = htmlCats();
@@ -526,6 +544,7 @@ export function iniciar(ctx) {
   }
   function enviar(e) {
     e.preventDefault();
+    sincronizar();
     limparErro();
     const v = lerNumero(q('#gastos-valor').value);
     if (v == null || v <= 0 || v >= 1e6) return erro('Digite o valor (ex.: 45,90).', q('#gastos-valor'));
@@ -559,13 +578,14 @@ export function iniciar(ctx) {
     if (ctx.celular()) document.activeElement?.blur?.(); else q('#gastos-valor').focus({ preventScroll: true });
   }
   function apagar(id) {
+    sincronizar();
     const i = lista.findIndex((x) => x.id === id);
     if (i < 0) return;
     const g = lista[i];
     if (editando === id) limparForm();
     lista.splice(i, 1);
     salvarLista(); desenhar();
-    oferecerDesfazer(`Apagado: ${g.desc || CAT[g.cat].nome}, ${din(g.valor, g.moeda)}.`, () => { lista.splice(Math.min(i, lista.length), 0, g); }, { focar: true, volta: g.id });
+    oferecerDesfazer(`Apagado: ${g.desc || CAT[g.cat].nome}, ${din(g.valor, g.moeda)}.`, () => { if (!lista.some((x) => x.id === g.id)) lista.splice(Math.min(i, lista.length), 0, g); }, { focar: true, volta: g.id });
   }
 
   // ---------- desfazer (barra presa embaixo do painel) ----------
@@ -629,7 +649,6 @@ export function iniciar(ctx) {
     sec.querySelectorAll('#gastos-cambio, #gastos-extra, #gastos-orc input[type="text"]').forEach((el) => el.removeAttribute('aria-invalid'));
     marcar('gastos-om', orc.moeda);
     marcar('gastos-ver', ver);
-    if (orc.total || Object.keys(orc.cat).length) q('#gastos-orc').open = true;
   }
 
   // ---------- exportar ----------
@@ -719,6 +738,7 @@ export function iniciar(ctx) {
     marcar('gastos-moeda', 'USD');
     marcar('gastos-forma', store.get('gastos.forma') === 'dinheiro' ? 'dinheiro' : 'cartao');
     preencherCampos();
+    if (orc.total || Object.keys(orc.cat).length) q('#gastos-orc').open = true;   // com orçamento, já abre mostrando
     desenhar();
 
     q('#gastos-form').addEventListener('submit', enviar);
@@ -777,8 +797,8 @@ export function iniciar(ctx) {
   // outra aba do navegador mudou os gastos: relê tudo
   addEventListener('storage', (e) => {
     if (e.key != null && !e.key.startsWith('viagem-motorhome.gastos.')) return;   // null = a outra aba limpou tudo
-    lista = lerLista(); cambio = lerCambio(); orc = lerOrc(); ver = store.get('gastos.ver') === 'BRL' ? 'BRL' : 'USD';
-    if (editando && !lista.some((x) => x.id === editando)) limparForm();
+    ver = store.get('gastos.ver') === 'BRL' ? 'BRL' : 'USD';
+    sincronizar();
     if (sec && !sec.contains(document.activeElement)) preencherCampos();
     desenhar();
   });
@@ -793,6 +813,8 @@ export function iniciar(ctx) {
     },
     aoMostrarPainel: (nome) => {
       if (nome !== 'gastos' || !sec) return;
+      sincronizar();
+      if (!sec.contains(document.activeElement)) preencherCampos();   // câmbio e orçamento podem ter vindo do Juntar
       opcoesDia();
       // o dia segue o dia aberto (ou hoje), menos no meio de um lançamento: aí fica o que a pessoa escolheu
       const meio = editando || q('#gastos-valor').value.trim() !== '';

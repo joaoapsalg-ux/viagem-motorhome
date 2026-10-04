@@ -59,8 +59,14 @@ let verOpc = store.get('opc') === '1';
 let mapa = null;
 let filtroOp = 'todos';   // filtro dos opcionais do dia: 'todos', 'quero' ou um tipo
 /** opcionais que o casal marcou como "quero fazer" (guardado no aparelho) */
-const quero = new Set((() => { try { return JSON.parse(store.get('quero') ?? '[]'); } catch { return []; } })());
-function setQuero(id, on) { if (on) quero.add(id); else quero.delete(id); store.set('quero', JSON.stringify([...quero])); }
+const lerQuero = () => { try { const v = JSON.parse(store.get('quero') ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+const quero = new Set(lerQuero());
+/** relê o guardado antes de gravar: o "Juntar" do Preparar pode ter trazido estrelas de outro celular */
+function setQuero(id, on) {
+  quero.clear(); for (const q of lerQuero()) quero.add(q);
+  if (on) quero.add(id); else quero.delete(id);
+  store.set('quero', JSON.stringify([...quero]));
+}
 
 // ---------- módulos (src/mod/*.js; contrato em src/mod/LEIAME.md) ----------
 /** registro do que os módulos acrescentam: blocos na ficha do dia, etiquetas na lista dos dias e ganchos */
@@ -968,7 +974,7 @@ $('#compass').addEventListener('click', () => mapa?.norte());
 $('#rail-logo').addEventListener('click', () => mostrarViagem());
 
 // ---------- carga dos módulos ----------
-const MODULOS = ['clima', 'preparar', 'gastos', 'estrada', 'agenda'];   // os que ainda estão em construção entram quando ficarem prontos
+const MODULOS = ['clima', 'preparar', 'gastos', 'estrada', 'agenda', 'perfil', 'diario', 'pacote', 'demo'];
 /** o que os módulos podem usar do app (ver src/mod/LEIAME.md) */
 const ctx = {
   dados: { roteiro, rotas, pontos, alertas, opcionais, fotos }, dias, diaPorN, rotaPorId, opPorId,

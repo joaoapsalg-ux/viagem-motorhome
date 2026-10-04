@@ -4,9 +4,9 @@
 
 const RAIO_KM = 15;        // mais longe que isso da rota do dia, o cartão some
 const INTERVALO = 2000;    // o GPS manda muitas posições: no máximo uma conta a cada 2 s
-const FATOR_MH = 0.8;      // motorhome: 80% da velocidade média da rota (que é de carro)
-const RE_COMB = /combust|gasolin|diesel|posto|abastec|propano|\bgas\b|fuel/i;
-const RE_AGUA = /água|agua|dump|despej|esgot|potável|water/i;
+const MARGEM_MIN = 24;     // celular: a margem de cima do mapa só muda se o cartão mudar mais que isso (px)
+const RE_COMB = /combust|gasolin|diesel|\bpostos?\b|abastec|propano|\bgas\b|\bfuel/i;
+const RE_AGUA = /água|agua|\bdump\b|despej|esgoto|potável|\bwater\b/i;
 const SVG_GPS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3"/><circle cx="12" cy="12" r="7"/></svg>';
 const SVG_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const SVG_SETA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
@@ -36,6 +36,7 @@ const CSS = `
   .estrada-l li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .estrada-l .k { flex: 0 0 auto; width: 74px; font: 600 10.5px/1.3 var(--f-display); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
   .estrada-l .v { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .estrada-l .v small { font-weight: 400; color: var(--ink-soft); }
   .estrada-l .d { flex: 0 0 auto; font: 12px var(--f-data); color: var(--contour); white-space: nowrap; }
   #estrada-cartao .cc-warn { margin-top: 6px; font-size: 12.5px; padding: 5px 8px; }
   .estrada-nota { margin: 5px 0 0; font-size: 11px; line-height: 1.35; color: var(--ink-soft); }
@@ -44,6 +45,8 @@ const CSS = `
   .estrada-blk .btn { justify-self: start; min-height: 40px; }
   /* no computador (mouse), o botão "Começar o dia" não faz sentido */
   @media (min-width: 701px) and (pointer: fine) { .estrada-blk { display: none; } }
+  /* no computador há espaço: nomes longos quebram em até 2 linhas (no celular, 1 linha; o nome inteiro fica no title) */
+  @media (min-width: 701px) { .estrada-l .v { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; } }
   @media (max-width: 700px) {
     #estrada-cartao { left: 10px; right: 10px; width: auto; bottom: auto; top: calc(10px + env(safe-area-inset-top, 0px)); padding: 2px 2px 8px 10px; gap: 5px; }
     body:has(#net:not([hidden])) #estrada-cartao { top: calc(48px + env(safe-area-inset-top, 0px)); }
@@ -61,12 +64,15 @@ let ctx, U, cartao;
 let ultimo = null;          // última posição do GPS { ll, coords }
 let proxConta = 0, timer = 0, relogio = 0;
 let visivel = false;
-let diaEscolhido = null;    // dia ligado no botão "Começar o dia" (vale até o GPS desligar)
+let diaEscolhido = null;    // dia ligado no botão "Começar o dia" (vale até o GPS desligar ou a data virar)
+let escolhidoEm = '';       // data do aparelho quando o dia foi escolhido
+let margem = 0;             // margem de cima do mapa no celular (o cartão cobre o alto da tela)
 let fechado = false;        // a pessoa fechou o cartão: volta quando o GPS religar ou no "Começar o dia"
 let avisarFora = false;     // depois do "Começar o dia", avisa uma vez se a posição está longe da rota
 let andado = null;          // { rota, km }: último ponto na rota (para laços e idas e voltas)
 let fichaLigada = false;
 let htmlTit = '', htmlCorpo = '';   // o que está desenhado (sem mudança, o cartão não é refeito)
+let rotaMostrada = '';      // id da rota do cartão à mostra
 const medidas = new Map();  // id da rota → km acumulado em cada vértice
 
 export function iniciar(c) {
@@ -119,6 +125,7 @@ export function iniciar(c) {
       if (ultimo) agendar();   // o dia aberto ou a rota (plano A/B) podem ter mudado
     },
     aoPosicao,
+    aoSinal: () => requestAnimationFrame(ajustar),   // no celular, o aviso "Sem sinal" empurra o cartão para baixo
   });
 }
 
@@ -130,20 +137,22 @@ function blocoDia(d) {
     <p class="hint">Liga o GPS e mostra sobre o mapa quanto falta até o pernoite, a próxima parada e a chegada estimada.</p></section>`;
 }
 function comecar(n) {
-  diaEscolhido = n; fechado = false; avisarFora = true; andado = null;
+  diaEscolhido = n; escolhidoEm = isoHoje(); fechado = false; avisarFora = true; andado = null;
   if (ctx.diaAberto() !== n) ctx.abrirDia(n);
   if (ctx.celular()) ctx.setSheet('peek');   // o mapa aparece
-  const loc = U.$('#locate');
-  if (loc && loc.getAttribute('aria-pressed') !== 'true') loc.click();
+  const loc = U.$('#locate'), jaLigado = loc?.getAttribute('aria-pressed') === 'true';
+  if (loc && !jaLigado) loc.click();
   else if (ultimo) { proxConta = 0; agendar(); }
   // sem GPS no navegador o app já avisa; a permissão negada chega depois (o aviso do app vem por cima)
-  if (loc?.getAttribute('aria-pressed') === 'true') ctx.anunciar(`Dia ${n}: ligando o GPS. O cartão da estrada aparece quando você estiver na rota.`);
+  if (loc?.getAttribute('aria-pressed') === 'true') {
+    ctx.anunciar(`Dia ${n}: ${jaLigado ? 'GPS já ligado' : 'ligando o GPS'}. O cartão da estrada aparece quando você estiver na rota.`);
+  }
 }
 
 // ---------- posição ----------
 function aoPosicao(ll, coords) {
   if (!ll) {   // GPS desligado: tudo volta ao começo
-    ultimo = null; diaEscolhido = null; fechado = false; avisarFora = false; andado = null;
+    ultimo = null; diaEscolhido = null; escolhidoEm = ''; fechado = false; avisarFora = false; andado = null;
     clearTimeout(timer); timer = 0; proxConta = 0;   // ao religar, a primeira posição já conta
     esconder();
     return;
@@ -155,15 +164,26 @@ function aoPosicao(ll, coords) {
 function agendar() {
   if (timer) return;
   const espera = proxConta - performance.now();   // relógio que só anda para a frente (o do aparelho pode ser acertado)
-  if (espera <= 0) contar();
-  else timer = setTimeout(() => { timer = 0; contar(); }, espera);
+  if (espera <= 0) contarSeguro();
+  else timer = setTimeout(() => { timer = 0; contarSeguro(); }, espera);
+}
+/** nos relógios (setTimeout/setInterval) um erro não passa pelo try do app: o cartão some e o aviso fica no console */
+function contarSeguro() {
+  try { contar(); } catch (e) { console.warn('módulo estrada:', e); esconder(); }
+}
+/** data do aparelho em 'AAAA-MM-DD' */
+function isoHoje() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
 }
 /** dia da viagem de hoje pela data do aparelho (o ctx.diaDeHoje é da abertura: o app pode ficar aberto de um dia para o outro) */
 function diaDeHoje() {
-  const t = new Date(), iso = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const iso = isoHoje();
   return ctx.dias.find((d) => d.data === iso)?.n ?? null;
 }
 function diaAtual() {
+  // o "Começar o dia" vale para aquele dia: com o GPS ligado de um dia para o outro, passa a valer o dia de hoje
+  if (diaEscolhido && escolhidoEm !== isoHoje() && diaDeHoje()) { diaEscolhido = null; andado = null; }
   const n = diaEscolhido ?? diaDeHoje() ?? ctx.diaAberto();
   return n ? ctx.diaPorN.get(n) : null;
 }
@@ -269,9 +289,9 @@ function contar() {
   const fimId = P.pontos.at(-1), fim = ctx.dados.pontos[fimId];
   const ehPernoite = fimId === ctx.ativo(d).pernoite.ponto;
 
-  // chegada (motorhome: média da rota × 0,8) e pôr do sol, no fuso do fim do trecho
+  // chegada (motorhome: média da rota ÷ 1,25, a mesma conta do app) e pôr do sol, no fuso do fim do trecho
   const [u0, u1] = d.utc ?? [-7, -7];
-  const vel = P.horas > 0 ? (P.km / P.horas) * FATOR_MH : 60;
+  const vel = P.horas > 0 ? P.km / P.horas / U.MOTORHOME : 60;
   const agora = horaLocal(u1), chegada = agora + falta / vel;
   const { poe } = U.sol(fim.lat, fim.lon, d.data, u1);
   const op = praticoAFrente(d, f, feito);
@@ -279,7 +299,8 @@ function contar() {
 }
 
 // ---------- cartão ----------
-const hora = (h) => U.fmtHora(((h % 24) + 24) % 24);
+/** hora do relógio (23h59,6 vira 0h00, não "24h00") */
+const hora = (h) => { const m = Math.round(h * 60); return U.fmtHora((((m % 1440) + 1440) % 1440) / 60); };
 function desenhar(r) {
   const { d, P, dist, feito, falta, paradas, prox, fimId, ehPernoite, agora, chegada, poe, difFuso, op, acc } = r;
   const { esc, fmtKm, fmtH, fmtHora, nf } = U;
@@ -293,7 +314,8 @@ function desenhar(r) {
   if (prox) linhas.push(['Próxima', ctx.nomePonto(prox.id), fmtKm(prox.km - feito)]);
   linhas.push([ehPernoite ? 'Pernoite' : 'Destino', ctx.nomePonto(fimId), '']);
   linhas.push(['Pôr do sol', fmtHora(poe), agora < poe ? `em ${fmtH(poe - agora)}` : 'já se pôs']);
-  if (op) linhas.push([op.tipo, op.o.nome, `${fmtKm(op.km - feito)}${op.fora > 0.5 ? ` +${fmtKm(op.fora)}` : ''}`]);
+  // o desvio vai junto do nome (no celular pode ficar cortado, mas o title e o leitor de tela têm tudo)
+  if (op) linhas.push([op.tipo, op.o.nome, fmtKm(op.km - feito), op.fora > 0.5 ? `${fmtKm(op.fora)} fora da rota` : '']);
 
   let alerta = '';
   if (!chegando && d.prazo && chegada > d.prazo) alerta = `Chegada depois das ${d.prazo}h, o prazo da devolução.`;
@@ -308,14 +330,14 @@ function desenhar(r) {
     <div class="estrada-num">
       <div><b>${fmtKm(feito)}</b><span>feitos</span></div>
       <div><b>${fmtKm(falta)}</b><span>faltam</span></div>
-      <div><b>${chegando ? 'agora' : `~${hora(chegada)}`}</b><span>chegada${!chegando && chegada >= 24 ? ' amanhã' : ''}</span></div>
+      <div><b>${chegando ? 'agora' : `~${hora(chegada)}`}</b><span>chegada${!chegando && Math.round(chegada * 60) >= 1440 ? ' amanhã' : ''}</span></div>
     </div>
     <div class="estrada-bar" style="--c:${cor}" role="img" aria-label="${Math.round((feito / P.km) * 100)}% do trecho feito">
       <span style="width:${pc(feito)}"></span>${marcas}<b style="left:${pc(feito)}"></b></div>
     <div class="estrada-mais" id="estrada-mais">
-      <ul class="estrada-l">${linhas.map(([k, v, x]) => `<li><span class="k">${k}</span><span class="v">${esc(v)}</span>${x ? `<span class="d">${x}</span>` : ''}</li>`).join('')}</ul>
+      <ul class="estrada-l">${linhas.map(([k, v, x, extra]) => `<li><span class="k">${k}</span><span class="v" title="${esc(extra ? `${v} (${extra})` : v)}">${esc(v)}${extra ? `<small> · ${esc(extra)}</small>` : ''}</span>${x ? `<span class="d">${x}</span>` : ''}</li>`).join('')}</ul>
       ${alerta ? `<p class="cc-warn">${alerta}</p>` : ''}
-      <p class="estrada-nota">Estimativa<span class="estrada-sopc"> só de estrada,</span> sem as paradas<span class="estrada-sopc">: média da rota × 0,8 (motorhome)</span>${fuso}.<span class="estrada-sopc">${gps}</span></p>
+      <p class="estrada-nota">Estimativa<span class="estrada-sopc"> só de estrada,</span> sem as paradas<span class="estrada-sopc">: média da rota × ${nf(1 / U.MOTORHOME, 1)} (motorhome)</span>${fuso}.<span class="estrada-sopc">${gps}</span></p>
     </div>`;
   if (corpo !== htmlCorpo) U.$('#estrada-corpo', cartao).innerHTML = htmlCorpo = corpo;
 }
@@ -326,17 +348,33 @@ function desenhar(r) {
 function ajustar() {
   if (!visivel) return;
   cartao.classList.remove('is-estreito', 'is-coberto');
-  if (!ctx.celular()) return;
+  if (!ctx.celular()) return margemMapa(0);
   const base = cartao.getBoundingClientRect().bottom, nav = U.$('#nav'), lado = U.$('#side');
   if (nav?.offsetHeight && base > nav.getBoundingClientRect().top - 6) cartao.classList.add('is-estreito');
   if (lado?.offsetHeight && base > lado.getBoundingClientRect().top + 4) {
     if (cartao.contains(document.activeElement)) U.$('#locate')?.focus({ preventScroll: true });
     cartao.classList.add('is-coberto');
+    return;   // escondido só enquanto a gaveta está alta: a margem fica (o mapa não pula duas vezes)
   }
+  margemMapa(Math.round(cartao.getBoundingClientRect().bottom) + 8);
+}
+/**
+ * Celular: o cartão cobre o alto do mapa; a margem de cima põe o centro da vista (onde o app mostra a posição e
+ * enquadra o dia) na parte à mostra, entre o cartão e a gaveta. O app só mexe na margem de baixo.
+ */
+function margemMapa(px) {
+  if (px === margem || (px && margem && Math.abs(px - margem) < MARGEM_MIN)) return;
+  margem = px;
+  ctx.mapa()?.setPadding?.({ top: px });
 }
 function mostrar(r) {
   desenhar(r);
-  if (visivel) return ajustar();
+  const outraRota = r.P.id !== rotaMostrada;   // o dia virou ou o plano A/B mudou: o leitor de tela fica sabendo
+  rotaMostrada = r.P.id;
+  if (visivel) {
+    if (outraRota) ctx.anunciar(`Na estrada, dia ${r.d.n}: faltam ${U.fmtKm(r.falta)} até ${ctx.nomePonto(r.fimId)}.`);
+    return ajustar();
+  }
   visivel = true;
   cartao.hidden = false;
   ajustar();
@@ -349,6 +387,7 @@ function esconder(motivo = '') {
   visivel = false;
   if (cartao.contains(document.activeElement)) U.$('#locate')?.focus({ preventScroll: true });
   cartao.hidden = true;
+  margemMapa(0);
   clearInterval(relogio); relogio = 0;
   if (motivo) ctx.anunciar(motivo);
 }

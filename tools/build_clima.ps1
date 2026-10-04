@@ -4,12 +4,14 @@
 
   Fonte: Open-Meteo Historical Weather API (https://archive-api.open-meteo.com/v1/archive), modelo ERA5 (~28 km,
   temperatura ajustada pela altitude do ponto), sem chave. Um pedido por lugar, do primeiro ao último ano de uma vez
-  (só os dias em volta das datas contam), com pausa de ≥ 1 s entre pedidos. São ~13 pedidos de ~150 KB (~2 MB).
+  (só os dias em volta das datas contam), com pausa de ≥ 1 s entre pedidos. São 13 pedidos de ~140 KB (~1,8 MB).
+  A Open-Meteo conta um pedido de 10 anos como centenas de "chamadas" (limite de 600 por minuto): depois de uns
+  10 pedidos ela devolve 429 — aí o script espera 65 s e tenta de novo.
 
   Para cada lugar e data: anos 2016–2025, ±3 dias em volta da data (70 dias) →
     max / min      média das máximas e das mínimas (°C)
     min_abs        mínima mais baixa vista (°C), max_abs máxima mais alta vista
-    chuva          % de dias com chuva ≥ 1 mm;  neve  % de dias com neve (snowfall_sum > 0)
+    chuva          % de dias com chuva ≥ 1 mm;  neve  % de dias com neve ≥ 1 cm (snowfall_sum)
     vento / rajada média do vento máximo e da rajada máxima do dia (km/h)
 
   Uso (na pasta do projeto):
@@ -88,7 +90,8 @@ function Baixar([string]$url, [string]$arq) {
       return
     } catch {
       Write-Warning "pedido falhou (tentativa $t): $($_.Exception.Message)"
-      Start-Sleep -Seconds (3 * $t)
+      # 429 = passou do limite por minuto: espera o minuto virar
+      if ("$($_.Exception.Message)" -match '429') { Start-Sleep -Seconds 65 } else { Start-Sleep -Seconds (3 * $t) }
     }
   }
   throw "sem resposta: $url"
@@ -143,7 +146,8 @@ foreach ($ponto in $datas.Keys) {
         if ([double]$n -lt $minAbs) { $minAbs = [double]$n; $anoMin = $y }
         if ([double]$x -gt $maxAbs) { $maxAbs = [double]$x }
         $pr = $D['precipitation_sum'][$i]; if ($null -ne $pr) { $nPrec++; if ([double]$pr -ge 1) { $nChuva++ } }
-        $sn = $D['snowfall_sum'][$i]; if ($null -ne $sn) { $nNev++; if ([double]$sn -gt 0) { $nNeve++ } }
+        # neve ≥ 1 cm: a célula do ERA5 (~28 km) pega o planalto em volta e marca "traço" de neve até em Zion
+        $sn = $D['snowfall_sum'][$i]; if ($null -ne $sn) { $nNev++; if ([double]$sn -ge 1) { $nNeve++ } }
         $w = $D['wind_speed_10m_max'][$i]; if ($null -ne $w) { [void]$ve.Add([double]$w) }
         $g = $D['wind_gusts_10m_max'][$i]; if ($null -ne $g) { [void]$ra.Add([double]$g) }
       }
@@ -167,7 +171,7 @@ function Num($v, [string]$fmt = '0.#') { if ($null -eq $v) { 'null' } else { N $
 $sb = New-Object Text.StringBuilder
 [void]$sb.Append("{`n")
 [void]$sb.Append("  `"fonte`": `"Open-Meteo Historical Weather API (archive-api.open-meteo.com), modelo ERA5 (~28 km), temperatura ajustada pela altitude do ponto`",`n")
-[void]$sb.Append("  `"descricao`": `"Normal da época: anos $Ano0–$Ano1, ±$Janela dias em volta da data. max/min = médias das máximas e mínimas (°C); min_abs/max_abs = extremos vistos; chuva = % de dias com ≥ 1 mm; neve = % de dias com neve; vento/rajada = médias dos máximos do dia (km/h). Estimativa para o ponto, não é previsão.`",`n")
+[void]$sb.Append("  `"descricao`": `"Normal da época: anos $Ano0–$Ano1, ±$Janela dias em volta da data. max/min = médias das máximas e mínimas (°C); min_abs/max_abs = extremos vistos; chuva = % de dias com ≥ 1 mm; neve = % de dias com ≥ 1 cm de neve; vento/rajada = médias dos máximos do dia (km/h). Estimativa para o ponto, não é previsão.`",`n")
 [void]$sb.Append("  `"anos`": [$Ano0, $Ano1],`n  `"janela_dias`": $Janela,`n")
 [void]$sb.Append("  `"gerado_em`": `"$((Get-Date).ToString('yyyy-MM-dd', $inv))`",`n")
 [void]$sb.Append("  `"lugares`": {`n")

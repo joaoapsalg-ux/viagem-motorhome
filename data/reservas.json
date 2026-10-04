@@ -6,15 +6,10 @@
     "alta": "Alta",
     "media": "Média",
     "baixa": "Baixa",
-    "verificar": "Verificar"
+    "verificar": "Verificar",
+    "opcional": "Opcional"
   },
   "itens": [
-    {
-      "id": "antelope", "prioridade": "urgente", "item": "Antelope Canyon: tour guiado",
-      "onde": { "texto": "Operadoras navajo autorizadas (Upper ou Lower Antelope)", "url": "https://navajonationparks.org/" },
-      "prazo": "2026-10-05", "prazo_txt": "agora", "custo_est": 190, "dia": 5,
-      "notas": "Só se entra com guia; esgota semanas antes. A lista oficial de operadoras está no site dos parques navajos. O preço inclui a taxa navajo e o passe dos parques nacionais não vale. Confira se o horário está na hora navajo (1 h à frente do Arizona em outubro) e chegue 30 min antes. Estimativa para 2 pessoas."
-    },
     {
       "id": "hotel-lax", "prioridade": "urgente", "item": "Hotel perto do LAX (31/10)",
       "onde": { "texto": "Booking ou Expedia", "url": "https://www.booking.com/" },
@@ -128,6 +123,12 @@
       "onde": { "texto": "RV park a escolher", "url": "https://www.google.com/maps/search/?api=1&query=RV+park+Santa+Barbara+CA" },
       "prazo": "2026-10-29", "prazo_txt": "na véspera, se a Hwy 1 fechar", "custo_est": 65, "dia": 12, "plano": "B",
       "notas": "Só se a Hwy 1 fechar de novo (chuva forte pode soltar lama da área queimada). Aí o Morro Bay State Park deixa de ser preciso."
+    },
+    {
+      "id": "antelope", "prioridade": "opcional", "opcional": true, "item": "Antelope Canyon: tour guiado",
+      "onde": { "texto": "Operadoras navajo autorizadas (Upper ou Lower Antelope)", "url": "https://navajonationparks.org/" },
+      "prazo_txt": "se forem, reserve logo", "custo_est": 190, "dia": 5,
+      "notas": "Só se forem fazer o opcional do dia 5 (tour guiado). Só se entra com guia e os horários esgotam semanas antes: se decidirem ir, reserve logo; se não, marque “Não precisa”. A lista oficial de operadoras está no site dos parques navajos. O preço inclui a taxa navajo e o passe dos parques nacionais não vale. Confira se o horário está na hora navajo (1 h à frente do Arizona em outubro) e chegue 30 min antes. Estimativa para 2 pessoas."
     }
   ]
 }

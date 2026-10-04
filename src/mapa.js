@@ -94,6 +94,7 @@ export class Mapa {
     this.base = new Map();   // estilos da OpenFreeMap já baixados
     this.pad = { top: 0, right: 0, bottom: 0, left: 0 };
     this.geracao = 0;
+    this.genTopo = 0;
   }
 
   async #estiloBase(nome) {
@@ -191,14 +192,23 @@ export class Mapa {
     this.map.setMissingStyleImageResolver?.((id) => {
       if (!this.map.hasImage(id)) this.map.addImage(id, { width: 1, height: 1, data: new Uint8Array(4) });
     });
+    // sem sinal, quando o último bloco que faltava dá erro o MapLibre não desenha outro quadro, e o 'load' (que só
+    // é conferido ao desenhar) não chega: cutuca o desenho a cada erro e a cada segundo até abrir
     await new Promise((ok, falha) => {
-      const t = setTimeout(() => falha(new Error('O mapa demorou demais para abrir.')), 45000);
-      this.map.once('load', () => { clearTimeout(t); ok(); });
+      const cutucar = () => this.map.triggerRepaint();
+      const iv = setInterval(cutucar, 1000);
+      this.map.on('error', cutucar);
+      const fim = () => { clearTimeout(t); clearInterval(iv); this.map.off('error', cutucar); };
+      const t = setTimeout(() => { fim(); falha(new Error('O mapa demorou demais para abrir.')); }, 45000);
+      this.map.once('load', () => { fim(); ok(); });
     });
     // créditos começam recolhidos (o botão ⓘ abre)
     this.el.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
     // sem sinal, cada pedaço de mapa não guardado dá erro (esperado): só registra os outros
     this.map.on('error', (ev) => { if (navigator.onLine && ev?.error?.status !== 404) console.warn('mapa:', ev?.error?.message ?? ev); });
+    // sem sinal (ou com a opção do pacote), o topográfico entra só onde falta o mapa normal
+    this.map.on('idle', () => { if (this.st.semSinal) this.#conferirTopo(); });
+    if (this.st.semSinal) this.#conferirTopo();
     // toque/clique nas linhas
     this.map.on('click', 'r-toque', (e) => {
       const f = e.features?.[0];
@@ -411,7 +421,36 @@ export class Mapa {
   /** sem sinal: mostra o topográfico do USGS por baixo (onde o mapa vetorial não foi guardado) */
   setSemSinal(on) {
     this.st.semSinal = on;
-    if (this.map.getLayer('topo')) this.map.setLayoutProperty('topo', 'visibility', on ? 'visible' : 'none');
+    this.#conferirTopo();
+  }
+  /**
+   * O topográfico só aparece se falta o mapa normal em algum pedaço da vista: onde os dois existem, os nomes das
+   * cidades saem dobrados. Confere no cache os blocos sob uma grade de pontos da tela (com a câmera inclinada, só a
+   * parte de baixo, que é a de perto: longe o MapLibre usa blocos de outro zoom).
+   */
+  async #conferirTopo() {
+    const g = ++this.genTopo;
+    let ver = !!this.st.semSinal;
+    if (ver && typeof caches !== 'undefined') {
+      const z = limita(Math.floor(this.map.getZoom()), 0, 14), n = 2 ** z;
+      const { width: w, height: h } = this.map.getCanvas().getBoundingClientRect();
+      const topo = this.map.getPitch() > 30 ? h * 0.4 : 0;
+      const blocos = new Set();
+      for (let i = 0; i < 6; i++) for (let k = 0; k < 5; k++) {
+        const { lng, lat } = this.map.unproject([w * (i + 0.5) / 6, topo + (h - topo) * (k + 0.5) / 5]);
+        const r = limita(lat, -85, 85) * Math.PI / 180;
+        const x = limita(Math.floor((lng + 180) / 360 * n), 0, n - 1);
+        const y = limita(Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n), 0, n - 1);
+        blocos.add(`${z}/${x}/${y}`);
+      }
+      ver = false;
+      for (const b of blocos) {
+        let hit = null;
+        try { hit = await caches.match(`${OFM}/planet/latest/${b}.pbf`, { ignoreVary: true }); } catch { /* sem Cache API */ }
+        if (!hit) { ver = true; break; }
+      }
+    }
+    if (g === this.genTopo && this.map.getLayer('topo')) this.map.setLayoutProperty('topo', 'visibility', ver ? 'visible' : 'none');
   }
   setSombra(on) {
     this.st.sombra = on;

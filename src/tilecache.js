@@ -35,12 +35,16 @@ export async function aparar(max = MAX_BLOCOS) {
   } catch { /* sem Cache API */ }
 }
 
-// um bloco achado no cache volta para o fim da fila (uma vez por abertura), para o aparar apagar os menos usados
+// um bloco achado no cache volta para o fim da fila (uma vez por abertura), para o aparar apagar os menos usados.
+// Só os deste cache: os do pacote do mapa ('mapa-pacote-v1') não são copiados para cá (ocupariam o espaço duas vezes)
 const tocados = new Set();
-async function tocar(chave, resp) {
+async function tocar(chave) {
   if (tocados.has(chave)) return;
   tocados.add(chave);
-  try { await (await caches.open(CACHE_BLOCOS)).put(chave, resp); } catch { /* tanto faz */ }
+  try {
+    const c = await caches.open(CACHE_BLOCOS), r = await c.match(chave, { ignoreVary: true });
+    if (r) await c.put(chave, r);
+  } catch { /* tanto faz */ }
 }
 
 const baseAtualizada = new Set();   // estilo/letras/ícones já conferidos na rede nesta abertura
@@ -55,7 +59,7 @@ export async function buscar(url, signal) {
   let hit;
   try { hit = temCache ? await caches.match(chave, { ignoreVary: true }) : undefined; } catch { /* sem Cache API */ }
   if (hit) {
-    if (bloco) tocar(chave, hit.clone());
+    if (bloco) tocar(chave);
     else if (navigator.onLine && !baseAtualizada.has(chave)) {
       baseAtualizada.add(chave);
       fetch(chave, { mode: 'cors', credentials: 'omit', signal: comPrazo(null, 15000) })

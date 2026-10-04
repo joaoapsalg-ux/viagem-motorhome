@@ -1,8 +1,51 @@
 {
-  "fonte": "Open-Meteo Historical Weather API (archive-api.open-meteo.com), modelo ERA5",
-  "descricao": "Ainda não gerado: rode tools/build_clima.ps1 para calcular a normal da época de cada pernoite. Enquanto isso o app mostra só a previsão (16 dias).",
+  "fonte": "Open-Meteo Historical Weather API (archive-api.open-meteo.com), modelo ERA5 (~28 km), temperatura ajustada pela altitude do ponto",
+  "descricao": "Normal da época: anos 2016–2025, ±3 dias em volta da data. max/min = médias das máximas e mínimas (°C); min_abs/max_abs = extremos vistos; chuva = % de dias com ≥ 1 mm; neve = % de dias com ≥ 1 cm de neve; vento/rajada = médias dos máximos do dia (km/h). Estimativa para o ponto, não é previsão.",
   "anos": [2016, 2025],
   "janela_dias": 3,
-  "gerado_em": null,
-  "lugares": {}
+  "gerado_em": "2026-10-04",
+  "lugares": {
+    "jumbo_rocks": { "elev": 1328, "normais": {
+      "10-19": { "n": 70, "max": 24, "min": 10, "min_abs": 2, "ano_min": 2021, "max_abs": 31.1, "chuva": 1, "neve": 0, "vento": 10, "rajada": 27 }
+    } },
+    "blake_ranch": { "elev": 1297, "normais": {
+      "10-20": { "n": 70, "max": 24.5, "min": 11, "min_abs": 4.2, "ano_min": 2018, "max_abs": 32.2, "chuva": 7, "neve": 0, "vento": 16, "rajada": 36 }
+    } },
+    "mather": { "elev": 2127, "normais": {
+      "10-21": { "n": 70, "max": 18.1, "min": 4.1, "min_abs": -1.9, "ano_min": 2022, "max_abs": 25.7, "chuva": 11, "neve": 1, "vento": 13, "rajada": 43 },
+      "10-22": { "n": 70, "max": 18.1, "min": 3.9, "min_abs": -2.1, "ano_min": 2022, "max_abs": 25.7, "chuva": 13, "neve": 0, "vento": 13, "rajada": 42 }
+    } },
+    "page_cg": { "elev": 1300, "normais": {
+      "10-23": { "n": 70, "max": 21.6, "min": 8.1, "min_abs": -1.3, "ano_min": 2020, "max_abs": 28.4, "chuva": 10, "neve": 0, "vento": 11, "rajada": 28 }
+    } },
+    "watchman": { "elev": 1196, "normais": {
+      "10-24": { "n": 70, "max": 22.5, "min": 7.1, "min_abs": -2.1, "ano_min": 2020, "max_abs": 28.9, "chuva": 11, "neve": 0, "vento": 14, "rajada": 36 },
+      "10-25": { "n": 70, "max": 22.1, "min": 7.1, "min_abs": -2.1, "ano_min": 2020, "max_abs": 28.9, "chuva": 11, "neve": 0, "vento": 14, "rajada": 36 }
+    } },
+    "furnace_creek": { "elev": -63, "normais": {
+      "10-26": { "n": 70, "max": 30.1, "min": 17.5, "min_abs": 8.6, "ano_min": 2020, "max_abs": 37.6, "chuva": 7, "neve": 0, "vento": 9, "rajada": 30 }
+    } },
+    "upper_pines": { "elev": 1236, "normais": {
+      "10-27": { "n": 70, "max": 19.3, "min": 5.5, "min_abs": -0.8, "ano_min": 2024, "max_abs": 28.1, "chuva": 10, "neve": 0, "vento": 11, "rajada": 34 },
+      "10-28": { "n": 70, "max": 19, "min": 4.9, "min_abs": -1.4, "ano_min": 2019, "max_abs": 25.9, "chuva": 7, "neve": 0, "vento": 11, "rajada": 33 }
+    } },
+    "hmb_sb": { "elev": 9, "normais": {
+      "10-29": { "n": 70, "max": 21, "min": 12, "min_abs": 8, "ano_min": 2019, "max_abs": 30.3, "chuva": 11, "neve": 0, "vento": 12, "rajada": 30 }
+    } },
+    "morro_bay_sp": { "elev": 7, "normais": {
+      "10-30": { "n": 70, "max": 21.3, "min": 13.2, "min_abs": 9.7, "ano_min": 2019, "max_abs": 26.5, "chuva": 9, "neve": 0, "vento": 14, "rajada": 28 }
+    } },
+    "santa_barbara": { "elev": 14, "normais": {
+      "10-30": { "n": 70, "max": 24.1, "min": 14.8, "min_abs": 8.7, "ano_min": 2024, "max_abs": 30.4, "chuva": 4, "neve": 0, "vento": 13, "rajada": 30 }
+    } },
+    "hotel_lax": { "elev": 34, "normais": {
+      "10-31": { "n": 70, "max": 24.1, "min": 14.6, "min_abs": 10.4, "ano_min": 2019, "max_abs": 31.4, "chuva": 4, "neve": 0, "vento": 13, "rajada": 28 }
+    } },
+    "tioga_pass": { "elev": 3039, "normais": {
+      "10-27": { "n": 70, "max": 9.2, "min": -3.6, "min_abs": -12.2, "ano_min": 2021, "max_abs": 17.5, "chuva": 13, "neve": 7, "vento": 12, "rajada": 41 }
+    } },
+    "badwater": { "elev": -84, "normais": {
+      "10-27": { "n": 70, "max": 29.8, "min": 18.1, "min_abs": 7.6, "ano_min": 2019, "max_abs": 36.8, "chuva": 6, "neve": 0, "vento": 9, "rajada": 34 }
+    } }
+  }
 }

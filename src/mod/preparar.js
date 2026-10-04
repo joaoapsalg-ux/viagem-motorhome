@@ -16,8 +16,8 @@ let catPorId = new Map(), itemPorId = new Map();
 const PREFIXO = 'viagem-motorhome.';
 const LAYOUT = new Set(['paneW', 'paneOpen', 'uiHidden', 'theme']);   // arrumação da tela e tema: são de cada aparelho, não viajam
 const K = { feitos: 'check.feitos', meus: 'check.meus', diario: 'check.diario', soFalta: 'check.soFalta', filtro: 'check.quando', st: 'reservas.status', nota: 'reservas.notas' };
-const PRIO_COR = { urgente: 'var(--g-alta)', alta: 'var(--g-media)', media: 'var(--hydro)', baixa: 'var(--ink-soft)', verificar: 'var(--contour)' };
-const ORDEM_PRIO = { urgente: 0, alta: 1, media: 2, baixa: 3, verificar: 4 };
+const PRIO_COR = { urgente: 'var(--g-alta)', alta: 'var(--g-media)', media: 'var(--hydro)', baixa: 'var(--ink-soft)', verificar: 'var(--contour)', opcional: 'var(--gold)' };
+const ORDEM_PRIO = { urgente: 0, alta: 1, media: 2, baixa: 3, verificar: 4, opcional: 5 };
 const ATALHO = { retirada: 'Checklist da retirada', mercado: 'Primeiro mercado', devolucao: 'Checklist da devolução', volta: 'Checklist da volta', diario: 'Rotina de hoje' };
 const SVG = {
   seta: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg>',
@@ -38,7 +38,11 @@ const diaDeHoje = () => ctx.dias.find((d) => d.data === hoje())?.n ?? null;
 // ---------- estado no aparelho ----------
 const ehObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 function lerJ(k, padrao, ok) { try { const v = JSON.parse(U.store.get(k) ?? 'null'); return ok(v) ? v : padrao; } catch { return padrao; } }
-const gravar = (k, v) => U.store.set(k, JSON.stringify(v));
+let descT = 0;
+function gravar(k, v) {
+  U.store.set(k, JSON.stringify(v));
+  clearTimeout(descT); descT = setTimeout(atualizarDescDados, 300);   // "Neste aparelho: …" acompanha
+}
 function lerEstado() {
   feitos = new Set(lerJ(K.feitos, [], Array.isArray).filter((x) => typeof x === 'string'));
   meus = lerJ(K.meus, [], Array.isArray).filter((m) => ehObj(m) && typeof m.id === 'string' && typeof m.texto === 'string' && typeof m.cat === 'string');
@@ -308,10 +312,15 @@ function imprimir() { montarImpressao(); window.print(); }
 
 // ---------- reservas ----------
 const stDe = (id) => (resSt[id] === 'feito' || resSt[id] === 'nao' ? resSt[id] : 'pendente');
-/** reserva do plano B de um dia que está no plano A: não conta nos totais */
+/** reserva do plano B de um dia que está no plano A (ou o contrário): não conta nos totais */
 const foraDeUso = (r) => !!r.plano && (r.plano === 'B') !== ctx.usaB(r.dia);
+/** reserva de um opcional (ex.: Antelope Canyon): só pesa depois de feita ou, se tiver o id do opcional, quando ele tem a estrela "quero fazer" */
+const opcionalEmJogo = (r) => stDe(r.id) === 'feito' || (typeof r.opcional === 'string' && ctx.quero().has(r.opcional));
+const opcionalParado = (r) => !!r.opcional && !opcionalEmJogo(r);
+/** entra na conta das reservas (e no aviso de prazo) */
+const conta = (r) => !foraDeUso(r) && !opcionalParado(r);
 function prazoDe(r) {
-  if (!r.prazo) return null;
+  if (!r.prazo) return r.prazo_txt ? { d: Infinity, txt: r.prazo_txt, nivel: 'ok' } : null;   // sem data: só o texto
   const d = diasAte(r.prazo), quando = r.prazo_txt ? `${r.prazo_txt}, até ${ddmm(r.prazo)}` : `até ${ddmm(r.prazo)}`;
   const txt = d < 0 ? `prazo passou (era até ${ddmm(r.prazo)})` : d === 0 ? 'prazo: hoje' : d === 1 ? 'prazo: amanhã' : `${quando}${d <= 7 ? ` · ${d} dias` : ''}`;
   return { d, txt, nivel: d < 0 ? 'atraso' : d <= 7 ? 'perto' : 'ok' };
@@ -323,22 +332,24 @@ function htmlReserva(r) {
   const dias = r.dia ? (r.noites > 1 ? `Dias ${r.dia}–${r.dia + r.noites - 1}` : `Dia ${r.dia}`) : '';
   const onde = r.onde?.url ? `<a href="${U.esc(r.onde.url)}" target="_blank" rel="noopener">${U.esc(r.onde.texto)}</a>` : U.esc(r.onde?.texto ?? '');
   const tagSt = st === 'feito' ? '<span class="tag" style="--c:var(--g-ok)">Feito ✓</span>' : st === 'nao' ? '<span class="tag">Não precisa</span>'
-    : P ? `<span class="tag prep-prazo" data-nivel="${foraDeUso(r) ? 'ok' : P.nivel}">${U.esc(P.txt)}</span>` : '';
+    : P ? `<span class="tag prep-prazo" data-nivel="${conta(r) ? P.nivel : 'ok'}">${U.esc(P.txt)}</span>` : '';
   const opc = (v, t) => `<input type="radio" name="prep-rs-${id}" id="prep-rs-${id}-${v}" value="${v}" data-prep-res="${id}"${st === v ? ' checked' : ''}><label for="prep-rs-${id}-${v}">${t}</label>`;
-  return `<li class="prep-r" id="prep-r-${id}" data-st="${st}" style="--c:${PRIO_COR[r.prioridade] ?? 'var(--ink-soft)'}">
-    <div class="prep-r-top"><span class="tag">${U.esc(reservas.prioridades?.[r.prioridade] ?? r.prioridade)}</span>${r.plano === 'B' ? '<span class="tag tag--alt">Só no plano B</span>' : ''}${tagSt}</div>
+  const plano = r.plano === 'B' ? `<span class="tag tag--alt">Só no plano B${foraDeUso(r) ? ' (dia na rota principal)' : ''}</span>`
+    : r.plano === 'A' ? `<span class="tag">Só na rota principal${foraDeUso(r) ? ' (dia no plano B)' : ''}</span>` : '';
+  return `<li class="prep-r" id="prep-r-${id}" data-st="${st}"${conta(r) ? '' : ' data-fora'} style="--c:${PRIO_COR[r.prioridade] ?? 'var(--ink-soft)'}">
+    <div class="prep-r-top"><span class="tag">${U.esc(reservas.prioridades?.[r.prioridade] ?? r.prioridade)}</span>${plano}${tagSt}</div>
     <b class="prep-r-t">${U.esc(r.item)}</b>
     <p class="prep-r-meta">${dias ? `<button type="button" class="lnk" data-prep-dia="${r.dia}">${dias}</button>` : ''}${r.custo_est ? `<span>~US$ ${U.nf(r.custo_est)}</span>` : ''}<span>${onde}</span></p>
     <p class="prep-r-anot" data-prep-anot="${id}"${nota ? '' : ' hidden'}><span class="sr-only">Sua anotação: </span>${U.esc(nota)}</p>
     <div class="seg2 seg2--3" role="radiogroup" aria-label="Situação: ${U.esc(r.item)}">${opc('pendente', 'Pendente')}${opc('feito', 'Feito')}${opc('nao', 'Não precisa')}</div>
-    <details class="prep-r-mais" data-res="${id}"${resAbertas.has(r.id) ? ' open' : ''}><summary>Notas e anotação</summary>
+    <details class="prep-r-mais" data-res="${id}"${resAbertas.has(r.id) ? ' open' : ''}><summary>Notas e anotação<span class="sr-only">: ${U.esc(r.item)}</span></summary>
       <div class="prep-r-corpo"><p>${U.esc(r.notas ?? '')}</p>
         <label class="prep-r-lab" for="prep-rn-${id}">Sua anotação <small>(fica só neste aparelho)</small></label>
         <textarea class="prep-campo" id="prep-rn-${id}" data-prep-nota="${id}" rows="2" maxlength="500" placeholder="Nº da reserva, horário, valor…">${U.esc(nota)}</textarea></div>
     </details></li>`;
 }
 function resumoReservas() {
-  const ativas = reservas.itens.filter((r) => !foraDeUso(r));
+  const ativas = reservas.itens.filter(conta);
   const pend = ativas.filter((r) => stDe(r.id) === 'pendente');
   const urg = pend.filter((r) => { const p = prazoDe(r); return p && p.d <= 7; });
   const custo = pend.reduce((s, r) => s + (r.custo_est || 0), 0);
@@ -361,7 +372,7 @@ function renderReservas() {
   }
   el.innerHTML = `<div class="prep-res-topo">${htmlTopoReservas()}</div>
     <ul class="prep-res">${ordemRes().map(htmlReserva).join('')}</ul>
-    <p class="cc-note">Lista da aba Reservas da planilha, atualizada em ${U.fmtDia(reservas.conferido_em)}. Plano B só entra na conta quando o dia estiver no plano B.</p>`;
+    <p class="cc-note">Lista da aba Reservas da planilha, atualizada em ${U.fmtDia(reservas.conferido_em)}. Plano B só entra na conta quando o dia estiver no plano B; opcional, só depois de marcado como feito.</p>`;
 }
 function mudarSituacao(id, v) {
   if (v === 'pendente') delete resSt[id]; else resSt[id] = v;
@@ -394,6 +405,7 @@ const NOMES = [
   [/^rota\.\d+$/, 'escolha de rota (plano A ou B)', 'escolhas de rota (plano A ou B)'],
   [/^gastos\.lista$/, 'gasto anotado', 'gastos anotados'],
   [/^gastos\./, 'ajuste dos gastos', 'ajustes dos gastos'],
+  [/^diario\./, 'anotação do diário', 'anotações do diário'],
   [/^(fundo|sombra|3d|planob|opc|check\.soFalta|check\.quando|estrada\.min)$/, 'preferência', 'preferências'],
 ];
 function nomeDe(k) {
@@ -433,15 +445,25 @@ function descrever(chaves) {
     x.q += p.ok ? tamanho(p.v) : 1;
     g.set(nome[1], x);
   }
-  return [...g.values()].map((x) => comNome(x.nome, x.q));
+  return [...g.values()].filter((x) => x.q > 0).map((x) => comNome(x.nome, x.q));   // lista vazia guardada não conta
+}
+function textoDesc() {
+  const desc = descrever(chavesDoAparelho());
+  return desc.length ? `Neste aparelho: ${desc.join(' · ')}.` : 'Ainda não há nada guardado neste aparelho.';
+}
+/** só a frase "Neste aparelho: …" (sem refazer a seção: o texto colado e o foco ficam) */
+function atualizarDescDados() {
+  const p = document.querySelector('#mod-preparar-dados [data-prep-desc]');
+  if (p) p.textContent = textoDesc();
 }
 function renderDados() {
   const el = secao('mod-preparar-dados', 4);
-  const desc = descrever(chavesDoAparelho());
+  // o texto colado e a escolha "ficar com o que veio" sobrevivem ao redesenho (o painel é refeito a cada abertura)
+  const colado = document.getElementById('prep-colar')?.value ?? '', pref = !!document.getElementById('prep-pref')?.checked;
   const share = navigator.share ? `<button type="button" class="btn btn--small" data-prep-act="dados-compartilhar">${U.ICONE.compartilhar}Compartilhar</button>` : '';
   el.innerHTML = `<div class="prep-h"><h3 id="mod-preparar-dados-h">Levar meus dados para outro celular</h3></div>
     <p class="prep-txt">Marcações, reservas, anotações, gastos e escolhas ficam só neste aparelho. Para os dois celulares ficarem iguais, mande os dados deste e junte no outro (e depois o contrário). Nada é apagado: o que vier se soma ao que já existe.</p>
-    <p class="hint">${desc.length ? `Neste aparelho: ${U.esc(desc.join(' · '))}.` : 'Ainda não há nada guardado neste aparelho.'}</p>
+    <p class="hint" data-prep-desc>${U.esc(textoDesc())}</p>
     <h4 class="prep-h4">Mandar deste aparelho</h4>
     <div class="prep-acts"><button type="button" class="btn btn--small" data-prep-act="dados-baixar">${SVG.baixar}Baixar arquivo</button>${share}
       <button type="button" class="btn btn--small" data-prep-act="dados-copiar">${SVG.copiar}Copiar o texto</button></div>
@@ -453,6 +475,8 @@ function renderDados() {
     <label class="row prep-so" for="prep-pref"><span>Se os dois tiverem algo diferente, ficar com o que veio</span><input type="checkbox" id="prep-pref"></label>
     <div class="prep-acts"><button type="button" class="btn btn--small btn--main" data-prep-act="dados-juntar">Juntar</button></div>
     <div class="prep-st" id="prep-dados-st" role="status" aria-live="polite"></div>`;
+  el.querySelector('#prep-colar').value = colado;
+  el.querySelector('#prep-pref').checked = pref;
 }
 const textoPacote = () => JSON.stringify(pacote());
 function baixarDados() {
@@ -505,6 +529,7 @@ function juntarValor(a, b, preferir, conta) {
 }
 function importar(o, preferir) {
   const rel = new Map();   // nome → { novos, trocados, mantidos }
+  const mudou = new Set();   // chaves gravadas
   let falhas = 0;
   for (const [k, v] of Object.entries(o.chaves)) {
     if (typeof v !== 'string' || LAYOUT.has(k) || ehCache(k) || !/^[\w.:-]{1,80}$/.test(k)) continue;
@@ -518,30 +543,37 @@ function importar(o, preferir) {
       if (A.ok && B.ok && A.v && B.v && typeof A.v === 'object' && typeof B.v === 'object') final = JSON.stringify(juntarValor(A.v, B.v, preferir, conta));
       else if (preferir) { final = v; conta.trocados = 1; } else conta.mantidos = 1;
     }
-    if (final !== undefined && final !== atual) { U.store.set(k, final); if (U.store.get(k) !== final) falhas++; }
+    if (final !== undefined && final !== atual) { U.store.set(k, final); if (U.store.get(k) !== final) falhas++; else mudou.add(k); }
     const nome = nomeDe(k), t = rel.get(nome[1]) ?? { nome, novos: 0, trocados: 0, mantidos: 0 };
     t.novos += conta.novos; t.trocados += conta.trocados; t.mantidos += conta.mantidos;
     rel.set(nome[1], t);
   }
-  return { rel, falhas };
+  return { rel, falhas, mudou };
 }
 function juntar(txt, origem) {
   let o;
   try { o = lerPacote(txt); } catch (e) { status('prep-dados-st', e.message); return; }
   const preferir = document.getElementById('prep-pref')?.checked;
-  const { rel, falhas } = importar(o, preferir);
+  const { rel, falhas, mudou } = importar(o, preferir);
   const entrou = [...rel.values()].filter((t) => t.novos || t.trocados).map((t) => comNome(t.nome, t.novos + t.trocados));
   const mantidos = [...rel.values()].reduce((s, t) => s + t.mantidos, 0);
   const quando = o.exportado_em ? ` (de ${new Date(o.exportado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})` : '';
   // o checklist e as reservas mudam na hora; o resto do app lê o aparelho ao abrir
+  const campo = document.getElementById('prep-colar');
+  if (campo && origem === 'colar' && !mantidos) campo.value = '';   // já foi juntado: o campo volta vazio (com diferenças, fica para juntar de novo trocando)
   lerEstado(); renderCheck(); renderReservas(); renderDados();
   ctx.atualizarViagem(); ctx.atualizarDia(); sujo = false;
-  const partes = [entrou.length ? `Juntado${quando}. Entrou: ${entrou.join(' · ')}.` : `Nada novo${quando}: este aparelho já tinha tudo isso.`];
-  if (mantidos) partes.push(`${mantidos} ${mantidos === 1 ? 'diferença ficou' : 'diferenças ficaram'} como estava${mantidos === 1 ? '' : 'm'} aqui.`);
+  const partes = [entrou.length ? `Juntado${quando}. Entrou: ${entrou.join(' · ')}.` : mantidos ? `Nada mudou${quando}.` : `Nada novo${quando}: este aparelho já tinha tudo isso.`];
+  if (mantidos) partes.push(`${mantidos} ${mantidos === 1 ? 'diferença ficou' : 'diferenças ficaram'} como estava${mantidos === 1 ? '' : 'm'} aqui. Para trocar, marque “ficar com o que veio” e junte de novo.`);
   if (falhas) partes.push('Parte não coube no armazenamento do aparelho.');
-  status('prep-dados-st', partes.join(' '), entrou.length ? '<span>Para as estrelas, as rotas e os outros painéis mostrarem tudo, recarregue.</span><button type="button" class="btn btn--small" data-prep-act="recarregar">Recarregar agora</button>' : '');
+  // o app guarda as estrelas na memória ao abrir: sem recarregar, marcar uma estrela regravaria a lista antiga por cima da que veio
+  const rec = mudou.has('quero') ? 'Recarregue antes de mexer nas estrelas dos opcionais: só assim as que vieram aparecem (e não se perdem).'
+    : 'Para as rotas e os outros painéis mostrarem tudo, recarregue.';
+  const fora = [...mudou].some((k) => !/^(check|reservas)\./.test(k));   // o checklist e as reservas já mudaram na tela
+  status('prep-dados-st', partes.join(' '), fora ? `<span>${rec}</span><button type="button" class="btn btn--small" data-prep-act="recarregar">Recarregar agora</button>` : '');
   // a seção foi redesenhada (a região de status é nova): o foco volta ao botão usado e o aviso vai pelo anúncio do app
   document.querySelector(origem === 'arquivo' ? '#prep-arq' : '[data-prep-act="dados-juntar"]')?.focus({ preventScroll: true });
+  document.getElementById('prep-dados-st')?.scrollIntoView({ block: 'nearest' });   // o checklist acima pode ter mudado de altura
   ctx.anunciar(partes[0]);
 }
 
@@ -553,7 +585,9 @@ function htmlDia(d) {
     if (!r.dia || n < r.dia || n > r.dia + (r.noites || 1) - 1 || foraDeUso(r)) continue;
     const st = stDe(r.id), P = prazoDe(r);
     const tag = st === 'feito' ? '<span class="tag" style="--c:var(--g-ok)">Feito ✓</span>' : st === 'nao' ? '<span class="tag">Não precisa</span>'
-      : `<span class="tag" style="--c:${P && P.d <= 7 ? 'var(--g-alta)' : 'var(--g-media)'}">Pendente</span>`;
+      : opcionalParado(r) ? '<span class="tag" style="--c:var(--gold)">Opcional</span>'
+      : P && P.d <= 7 ? `<span class="tag" style="--c:var(--g-alta)">Pendente · ${P.d < 0 ? 'prazo passou' : P.d === 0 ? 'prazo hoje' : P.d === 1 ? 'prazo amanhã' : `prazo em ${P.d} dias`}</span>`   // a pressa vai no texto, não só na cor
+      : '<span class="tag" style="--c:var(--g-media)">Pendente</span>';
     linhas.push(`<li>${tag}<button type="button" class="lnk" data-preparar-ir="r:${U.esc(r.id)}">${U.esc(r.item)}</button></li>`);
   }
   if (lista) {
@@ -669,7 +703,7 @@ function estilo() {
   .prep-acts { display: flex; flex-wrap: wrap; gap: 6px; }
   .prep-st { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; line-height: 1.45; color: var(--accent); }
   .prep-st:empty { display: none; }
-  .prep-st > span { flex: 1 1 14em; }
+  .prep-st > span { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
   .prep-st--cat { margin: 0; padding: 4px 14px 0; }
   .prep-campo { display: block; width: 100%; box-sizing: border-box; min-height: 40px; padding: 8px 10px; border: 1px solid var(--panel-line); border-radius: 8px; background: var(--panel); color: var(--ink); font: 14px/1.4 var(--f-body); }
   textarea.prep-campo { resize: vertical; font: 13px/1.4 var(--f-data); }
@@ -690,7 +724,8 @@ function estilo() {
   .prep-cat-nota { padding: 0 12px 6px; }
   .prep-its { list-style: none; margin: 0; padding: 0 8px 2px; }
   .prep-it { display: grid; grid-template-columns: 1fr auto; align-items: start; border-top: 1px solid color-mix(in srgb, var(--panel-line) 55%, transparent); transition: opacity .35s; }
-  .prep-it > label { display: flex; align-items: flex-start; gap: 10px; padding: 9px 4px; cursor: pointer; font-size: 14.5px; line-height: 1.35; }
+  .prep-it > label { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 9px 4px; cursor: pointer; font-size: 14.5px; line-height: 1.35; }
+  .prep-it > label > span { min-width: 0; overflow-wrap: anywhere; }
   .prep-it input { flex: 0 0 auto; width: 20px; height: 20px; margin: 0; accent-color: var(--g-ok); }
   .prep-it input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .prep-it > small { grid-column: 1; display: block; margin-top: -5px; padding: 0 4px 9px 34px; font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); }
@@ -712,8 +747,10 @@ function estilo() {
   .prep-r[data-st="feito"] { border-left-color: var(--g-ok); background: color-mix(in srgb, var(--g-ok) 7%, var(--tile)); }
   .prep-r[data-st="nao"] { border-left-color: var(--panel-line); }
   .prep-r[data-st="nao"] .prep-r-t { color: var(--ink-soft); text-decoration: line-through; }
+  .prep-r[data-fora][data-st="pendente"] { border-left-style: dashed; }
   .prep-r-top { display: flex; flex-wrap: wrap; gap: 4px; }
-  .prep-r-t { font: 700 16px/1.2 var(--f-display); letter-spacing: .02em; }
+  .prep-r-top .tag { white-space: normal; }
+  .prep-r-t { font: 700 16px/1.2 var(--f-display); letter-spacing: .02em; overflow-wrap: anywhere; }
   .prep-r-meta { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; font: 12px/1.5 var(--f-data); color: var(--ink-soft); }
   .prep-r-meta .lnk { font: 600 12.5px/1.5 var(--f-body); }
   .prep-r-anot { margin: 0; font: 13px/1.4 var(--f-data); color: var(--contour); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -795,6 +832,9 @@ export function iniciar(c) {
   });
   addEventListener('afterprint', () => document.documentElement.classList.remove('prep-imprimindo'));
   // outra aba do app mudou os dados: acompanha
-  addEventListener('storage', (e) => { if (e.key?.startsWith(PREFIXO + 'check.') || e.key?.startsWith(PREFIXO + 'reservas.')) { lerEstado(); renderCheck(); renderReservas(); } });
+  addEventListener('storage', (e) => {
+    if (e.key?.startsWith(PREFIXO + 'check.') || e.key?.startsWith(PREFIXO + 'reservas.')) { lerEstado(); renderCheck(); renderReservas(); }
+    if (e.key?.startsWith(PREFIXO)) atualizarDescDados();
+  });
   carregar();   // em segundo plano: não segura a abertura do app
 }

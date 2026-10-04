@@ -36,7 +36,7 @@ const CONFERIR = {
     aberta: 'Aberta e o veículo cabe no túnel → rota principal (pelo túnel e pelo Canyon Overlook).',
   },
   9: {
-    resumo: 'Conferir a Tioga Road (Yosemite)', curto: 'Tioga Road',
+    resumo: 'Conferir a Tioga Road em Yosemite', curto: 'Tioga Road',
     texto: 'Amanhã a rota principal sobe a Tioga Road (CA-120), que fecha com a primeira neve forte. Decida antes de sair de Death Valley.',
     onde: ['Telefone do NPS Yosemite (estradas): +1 209-372-0200', 'https://www.nps.gov/yose/planyourvisit/conditions.htm'],
     aberta: 'Aberta → rota principal, descendo a Tioga Road antes de escurecer (~18h).',
@@ -76,6 +76,8 @@ function duracao(min) {
 }
 /** 6 → "6h"; 10, 10 → "10h10" */
 const hm = (h, m = 0) => `${h}h${m ? dois(m) : ''}`;
+/** ['6', '12', '13'] → "6, 12 e 13" */
+const juntar = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} e ${a.at(-1)}` : a.join(''));
 
 // ---------- texto do iCalendar ----------
 /** escapa um valor TEXT: \ ; , e quebras de linha */
@@ -135,9 +137,9 @@ export function montarICS(eventos, { nome } = {}) {
 
 // ---------- eventos da viagem ----------
 const linkDia = (n) => `${APP_URL}#dia=${n}`;
-/** lugar de um ponto do roteiro; sem alfinete quando o ponto é aproximado (locadora, hotel a escolher…) */
-function lugar(id, nome) {
-  const p = ctx.dados.pontos[id], nota = ctx.dados.roteiro.notasPontos?.[id] ?? '';
+/** lugar de um ponto do roteiro; sem alfinete quando o ponto é aproximado (locadora, hotel ou RV park a escolher…) */
+function lugar(id, nome, notaExtra = '') {
+  const p = ctx.dados.pontos[id], nota = `${ctx.dados.roteiro.notasPontos?.[id] ?? ''} ${notaExtra ?? ''}`;
   if (!p || /aproximad|a escolher|a confirmar/i.test(nota)) return { nome: nome ?? p?.nome ?? id };
   return { nome: nome ?? p.nome, lat: p.lat, lon: p.lon };
 }
@@ -167,7 +169,7 @@ function descricaoDia(d) {
   if (ops.length) {
     L.push(`Quero fazer:\n${ops.map((o) => {
       const det = [TIPO_OPC[o.tipo]?.nome, o.duracao_h ? `~${fmtH(o.duracao_h)}` : ''].filter(Boolean).join(', ');
-      return `• ${o.nome}${det ? ` (${det})` : ''}`;
+      return `• ${o.nome}${det ? ` · ${det}` : ''}`;   // "·" e não parênteses: muitos nomes já têm "(…)"
     }).join('\n')}`);
   }
   L.push(`Pernoite: ${pn.nome} (${pn.tipo}${pn.reserva ? `, reserva: ${pn.reserva}` : ''}).${pn.notas ? ` ${pn.notas}` : ''}`);
@@ -180,8 +182,9 @@ function descricaoDia(d) {
 function eventoDia(d) {
   const a = ctx.ativo(d);
   return {
-    uid: `dia-${d.n}-${ymd(d.data)}@${DOMINIO}`, resumo: `Dia ${d.n}: ${a.de} → ${a.para}`, desc: descricaoDia(d),
-    local: lugar(a.pernoite.ponto, a.pernoite.nome), url: linkDia(d.n),
+    // dia sem viagem (fica no mesmo parque): "Dia 4: Grand Canyon", e não "Grand Canyon → Grand Canyon"
+    uid: `dia-${d.n}-${ymd(d.data)}@${DOMINIO}`, resumo: `Dia ${d.n}: ${a.de === a.para ? a.de : `${a.de} → ${a.para}`}`, desc: descricaoDia(d),
+    local: lugar(a.pernoite.ponto, a.pernoite.nome, a.pernoite.notas), url: linkDia(d.n),
     inicio: { data: d.data }, fim: { data: somaDias(d.data, 1) },
   };
 }
@@ -199,7 +202,7 @@ function eventoConferir(d) {
   return {
     uid: `conferir-dia-${d.n}-${ymd(d.data)}@${DOMINIO}`, resumo: `${c.resumo} (amanhã, dia ${d.n})`, desc: L.join('\n\n'), url: linkDia(d.n),
     inicio: { data: vespera, hora: 19, tz }, fim: { data: vespera, hora: 19, min: 15, tz },
-    alarme: { gatilho: 'PT0S', texto: `${c.resumo} para amanhã` },
+    alarme: { gatilho: 'PT0S', texto: `${c.resumo}: amanhã é o dia ${d.n}` },
   };
 }
 /** devolução do motorhome no dia com prazo: da saída (6h; 8h no plano B) ao prazo, alarme 30 min antes */
@@ -219,15 +222,19 @@ function eventoDevolucao(d) {
 function eventoVoo() {
   const fim = ctx.dados.roteiro.fim;
   if (!fim?.data) return null;
-  const m = String(fim.texto ?? '').match(/(\d{1,2})h(\d{2})/);
-  const h = m ? +m[1] : 10, mi = m ? +m[2] : 10;
-  return {
-    uid: `voo-volta-${ymd(fim.data)}@${DOMINIO}`, resumo: `Voo de volta, LAX, ${hm(h, mi)}`,
+  // a hora vem do texto do roteiro ("às 10h10"); sem ela, vira evento de dia inteiro, sem alarme (nada de hora inventada)
+  const m = String(fim.texto ?? '').match(/(\d{1,2})h(\d{2})?/);
+  const ok = m && +m[1] < 24 && +(m[2] ?? 0) < 60;
+  const h = ok ? +m[1] : null, mi = ok ? +(m[2] ?? 0) : 0;
+  const ev = {
+    uid: `voo-volta-${ymd(fim.data)}@${DOMINIO}`, resumo: `Voo de volta, LAX${h != null ? `, ${hm(h, mi)}` : ''}`,
     desc: [fim.texto, 'Voo internacional: chegue ao aeroporto com folga (umas 3 h antes).', 'O número do voo e a reserva não estão no app: acrescente aqui, se quiser.'].filter(Boolean).join('\n\n'),
     local: lugar('lax', 'Aeroporto LAX (Los Angeles)'),
-    inicio: { data: fim.data, hora: h, min: mi, tz: LA },
-    alarme: { gatilho: duracao(VOO_ALARME * 60 - (h * 60 + mi)), texto: `Voo de volta hoje às ${hm(h, mi)} (LAX)` },
+    inicio: h != null ? { data: fim.data, hora: h, min: mi, tz: LA } : { data: fim.data },
   };
+  if (h == null) ev.fim = { data: somaDias(fim.data, 1) };
+  else if (h * 60 + mi > VOO_ALARME * 60) ev.alarme = { gatilho: duracao(VOO_ALARME * 60 - (h * 60 + mi)), texto: `Voo de volta hoje às ${hm(h, mi)} (LAX)` };
+  return ev;
 }
 /** eventos de um dia: lembrete da véspera, o dia, a devolução e (no último dia) o voo de volta */
 function eventosDoDia(n) {
@@ -262,13 +269,13 @@ function htmlResumo() {
     const v = somaDias(ctx.diaPorN.get(n).data, -1);
     return `${fmtData(v, semanaDe(v))} (${esc(CONFERIR[n].curto)})`;
   });
-  const dev = dias.find((d) => d.prazo), voo = eventoVoo();
+  const dev = dias.find((d) => d.prazo), voo = eventoVoo(), vi = voo?.inicio;
   const itens = [
-    `<b>${dias.length} dias</b> como eventos de dia inteiro, na rota escolhida${comB.length ? ` (plano B ${comB.length > 1 ? 'nos dias' : 'no dia'} ${comB.join(', ')})` : ''}`,
+    `<b>${dias.length} dias</b> como eventos de dia inteiro, na rota escolhida${comB.length ? ` (plano B ${comB.length > 1 ? 'nos dias' : 'no dia'} ${juntar(comB)})` : ''}`,
     nq ? `<b>★ ${nq}</b> opciona${nq > 1 ? 'is marcados' : 'l marcado'}, na descrição de cada dia` : '<b>Opcionais:</b> nenhum marcado ainda (marque com a estrela na ficha do dia)',
-    lemb.length ? `<b>${lemb.length} lembretes às 19h</b> da véspera: ${lemb.join(', ')}` : '',
+    lemb.length ? `<b>${lemb.length > 1 ? `${lemb.length} lembretes` : '1 lembrete'} às 19h</b> da véspera: ${juntar(lemb)}` : '',
     dev ? `<b>Devolução:</b> ${fmtData(dev.data, dev.semana)}, ${hm(ctx.usaB(dev.n) ? DEVOLUCAO.inicioB : DEVOLUCAO.inicio)}–${dev.prazo}h, com alarme` : '',
-    voo ? `<b>Voo de volta:</b> ${fmtData(voo.inicio.data, semanaDe(voo.inicio.data))}, ${hm(voo.inicio.hora, voo.inicio.min)} (LAX), alarme às ${VOO_ALARME}h` : '',
+    vi ? `<b>Voo de volta:</b> ${fmtData(vi.data, semanaDe(vi.data))}${vi.hora != null ? `, ${hm(vi.hora, vi.min)} (LAX)${voo.alarme ? `, alarme às ${VOO_ALARME}h` : ''}` : ' (LAX)'}` : '',
   ].filter(Boolean);
   return `<ul class="agenda-lista">${itens.map((t) => `<li>${t}</li>`).join('')}</ul>`;
 }
@@ -283,21 +290,26 @@ function renderPreparar() {
     pai.append(sec);
     sec.addEventListener('click', (e) => { if (e.target.closest('[data-agenda-tudo]')) baixarViagem(); });
   }
-  const st = sec.querySelector('.agenda-st')?.textContent ?? '';
+  const st0 = sec.querySelector('.agenda-st'), st = st0?.textContent ?? '', erro = !!st0?.classList.contains('is-erro');
   sec.innerHTML = `
     <h3 id="agenda-h">Agenda do celular</h3>
     <p class="agenda-txt">Põe a viagem na agenda: cada dia com programação, paradas, estrada, pernoite e o link do app.</p>
     ${htmlResumo()}
     <button type="button" class="btn btn--main" data-agenda-tudo aria-describedby="agenda-como">${ICONE_AGENDA}Pôr a viagem na agenda</button>
     <p class="hint" id="agenda-como">No iPhone, abra o arquivo baixado (fica em Arquivos › Downloads) e toque em Adicionar todos. No Android, abra o arquivo e escolha a agenda; se nenhuma abrir, importe no Google Agenda pelo computador.</p>
-    <p class="agenda-st" role="status">${ctx.util.esc(st)}</p>
+    <p class="agenda-st${erro ? ' is-erro' : ''}" role="status">${ctx.util.esc(st)}</p>
     <p class="cc-note">Vai o que está escolhido agora (rota de cada dia e opcionais marcados). Mudou algo? Baixe de novo e, se a agenda repetir eventos, apague os antigos. O Google Agenda não traz os alarmes do arquivo. No app da Tela de Início do iPhone, se nada acontecer, baixe pelo Safari. Sem número de voo nem de reserva.</p>`;
 }
 function baixarViagem() {
-  const texto = gerarICS();
-  baixar(texto, ARQUIVO);
   const st = document.querySelector('#mod-agenda .agenda-st');
-  if (st) st.textContent = `Baixado: ${ARQUIVO} (${contar(texto)} eventos). Abra o arquivo para pôr na agenda.`;
+  try {
+    const texto = gerarICS();
+    baixar(texto, ARQUIVO);
+    if (st) { st.classList.remove('is-erro'); st.textContent = `Baixado: ${ARQUIVO} (${contar(texto)} eventos). Abra o arquivo para pôr na agenda.`; }
+  } catch (err) {
+    console.warn('agenda:', err);
+    if (st) { st.classList.add('is-erro'); st.textContent = 'Não deu para montar o arquivo da agenda. Recarregue o app e tente de novo.'; }
+  }
 }
 
 // ---------- ficha do dia ----------
@@ -323,6 +335,7 @@ const CSS = `
   #mod-agenda .agenda-lista b { font-weight: 600; }
   #mod-agenda .btn--main { min-height: 44px; font-size: 14px; }
   #mod-agenda .agenda-st { font-size: 13px; padding: 6px 10px; border-left: 3px solid var(--g-ok); border-radius: 0 6px 6px 0; background: color-mix(in srgb, var(--g-ok) 10%, transparent); }
+  #mod-agenda .agenda-st.is-erro { border-left-color: var(--g-alta); background: color-mix(in srgb, var(--g-alta) 10%, transparent); }
   /* vazio: some da tela mas continua para o leitor de tela (assim o aviso de "Baixado" é lido) */
   #mod-agenda .agenda-st:empty { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); }
   .agenda-dia { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 10px; border-top: 1px solid var(--panel-line); }
@@ -330,6 +343,7 @@ const CSS = `
   @media (max-width: 700px) { .agenda-dia .btn { min-height: 40px; } }`;
 
 export function iniciar(c) {
+  if (ctx) return;   // já iniciado (num teste que chama de novo): não repete o bloco nem o ouvinte
   ctx = c;
   if (!document.getElementById('mod-agenda-css')) {
     const st = document.createElement('style');
@@ -341,9 +355,15 @@ export function iniciar(c) {
   document.getElementById('day')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-agenda-dia]');
     if (!b) return;
-    const n = +b.dataset.agendaDia, texto = gerarICS([n]);
-    baixar(texto, `viagem-motorhome-dia-${n}.ics`);
-    ctx.aviso(`Dia ${n} baixado (${contar(texto)} evento${contar(texto) > 1 ? 's' : ''}). Abra o arquivo para pôr na agenda.`);
+    const n = +b.dataset.agendaDia;
+    try {
+      const texto = gerarICS([n]), k = contar(texto);
+      baixar(texto, `viagem-motorhome-dia-${n}.ics`);
+      ctx.aviso(`Dia ${n} baixado (${k} evento${k > 1 ? 's' : ''}). Abra o arquivo para pôr na agenda.`);
+    } catch (err) {
+      console.warn('agenda:', err);
+      ctx.aviso('Não deu para montar o arquivo da agenda. Recarregue o app e tente de novo.');
+    }
   });
   ctx.registrar({
     blocoDia: { lugar: 'fim', html: htmlDia },
