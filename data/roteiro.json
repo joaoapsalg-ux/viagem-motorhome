@@ -4,7 +4,7 @@
   "fonte": "Planilha 'Viagem Motorhome Costa Oeste EUA - out-nov 2026' (07/09/2026), atualizada com a situação das estradas e parques em 04/10/2026.",
   "dias": [
     {
-      "n": 1, "data": "2026-10-19", "semana": "seg", "de": "Los Angeles (LAX)", "para": "Joshua Tree", "estado": "CA",
+      "n": 1, "data": "2026-10-19", "utc": [-7, -7], "livre_desde": 14, "semana": "seg", "de": "Los Angeles (LAX)", "para": "Joshua Tree", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 220, "horas_planilha": 2.7, "rota": "d01",
       "programacao": "Pouso às 7h, retirada do veículo à tarde, mercado.",
       "notas": "Dia curto por causa do jetlag: a retirada normalmente só libera à tarde. A locadora está no mapa no aeroporto, como aproximação: troque pelo endereço dela quando souber.",
@@ -12,7 +12,7 @@
       "pernoite": { "ponto": "jumbo_rocks", "nome": "Jumbo Rocks", "tipo": "Parque", "alternativa": "Cottonwood / Black Rock", "preco": 25, "reserva": "recreation.gov", "notas": "Sem água nem hookups: chegue com os tanques cheios (a água mais perto fica no Oasis Visitor Center). Chegada à noite, então reserve para não procurar vaga no escuro." }
     },
     {
-      "n": 2, "data": "2026-10-20", "semana": "ter", "de": "Joshua Tree", "para": "Kingman", "estado": "AZ",
+      "n": 2, "data": "2026-10-20", "utc": [-7, -7], "semana": "ter", "de": "Joshua Tree", "para": "Kingman", "estado": "AZ",
       "fuso": "Arizona (MST): mesma hora da Califórnia em outubro", "km_planilha": 330, "horas_planilha": 4, "rota": "d02",
       "programacao": "Hidden Valley e Keys View de manhã; I-40 à tarde.",
       "notas": "Route 66 no centro histórico de Kingman.",
@@ -20,7 +20,7 @@
       "pernoite": { "ponto": "blake_ranch", "nome": "Blake Ranch RV Park", "tipo": "Privado", "alternativa": "Zuni Village RV", "preco": 45, "reserva": "Direto", "notas": "Cidade de passagem. Hookups completos e lavanderia. Endereço no mapa aproximado (saída 66 da I-40): confira." }
     },
     {
-      "n": 3, "data": "2026-10-21", "semana": "qua", "de": "Kingman", "para": "Grand Canyon", "estado": "AZ",
+      "n": 3, "data": "2026-10-21", "utc": [-7, -7], "semana": "qua", "de": "Kingman", "para": "Grand Canyon", "estado": "AZ",
       "fuso": "Arizona (MST)", "km_planilha": 300, "horas_planilha": 4, "rota": "d03",
       "programacao": "Route 66 antiga até Seligman (Hackberry, Peach Springs), Williams e Grand Canyon. Pôr do sol em Hopi Point, de shuttle.",
       "notas": "O parque está sem água encanada pelo menos até 16/11. Encha o tanque de água limpa e esvazie os de detritos em Williams. A Hermit Road (Hopi Point) só abre ao shuttle até 30/11: use a linha vermelha.",
@@ -28,7 +28,7 @@
       "pernoite": { "ponto": "mather", "nome": "Mather Campground", "tipo": "Parque", "alternativa": "RV park em Tusayan ou Williams (o Trailer Village está fechado)", "preco": 25, "reserva": "recreation.gov", "notas": "Só camping seco: sem torneiras, duchas nem lavanderia; banheiros químicos (NPS, 30/09)." }
     },
     {
-      "n": 4, "data": "2026-10-22", "semana": "qui", "de": "Grand Canyon", "para": "Grand Canyon", "estado": "AZ",
+      "n": 4, "data": "2026-10-22", "utc": [-7, -7], "semana": "qui", "de": "Grand Canyon", "para": "Grand Canyon", "estado": "AZ",
       "fuso": "Arizona (MST)", "km_planilha": 100, "horas_planilha": 1.5, "rota": "d04",
       "programacao": "Desert View Drive (Grandview Point, Desert View) e Rim Trail.",
       "notas": "Lipan Point fechado até 23/12/2026 por obras: use Navajo Point ou Desert View. A torre de Desert View abre das 8h às 17h quando há equipe.",
@@ -36,7 +36,7 @@
       "pernoite": { "ponto": "mather", "nome": "Mather Campground", "tipo": "Parque", "alternativa": "RV park em Tusayan ou Williams", "preco": 25, "reserva": "recreation.gov", "notas": "Segunda noite de camping seco." }
     },
     {
-      "n": 5, "data": "2026-10-23", "semana": "sex", "de": "Grand Canyon", "para": "Page", "estado": "AZ",
+      "n": 5, "data": "2026-10-23", "utc": [-7, -7], "semana": "sex", "de": "Grand Canyon", "para": "Page", "estado": "AZ",
       "fuso": "Arizona (MST). O Antelope Canyon fica em terra Navajo, que está 1 h à frente: confira em que hora está marcado o tour", "km_planilha": 220, "horas_planilha": 3, "rota": "d05",
       "programacao": "Saída pela Desert View; Horseshoe Bend e Antelope Canyon.",
       "notas": "Antelope Canyon só com tour guiado, reservado com antecedência. Estacionamento do Horseshoe Bend: US$ 10 (a prefeitura não aceita o passe dos parques).",
@@ -44,7 +44,7 @@
       "pernoite": { "ponto": "page_cg", "nome": "Page Lake Powell Campground", "tipo": "Privado", "alternativa": "Wahweap RV & Campground", "preco": 60, "reserva": "Direto", "notas": "Hookups completos. Bom para reabastecer água depois do Grand Canyon." }
     },
     {
-      "n": 6, "data": "2026-10-24", "semana": "sáb", "de": "Page", "para": "Zion", "estado": "UT",
+      "n": 6, "data": "2026-10-24", "utc": [-7, -6], "semana": "sáb", "de": "Page", "para": "Zion", "estado": "UT",
       "fuso": "Utah (MDT): 1 h à frente do Arizona", "km_planilha": 190, "horas_planilha": 2.7, "rota": "d06",
       "programacao": "Via Kanab e pelo túnel Zion–Mount Carmel; Canyon Overlook à tarde.",
       "notas": "Túnel sem escolta desde 07/06/2026: só passam veículos até 2,39 m de largura (com espelhos), 3,45 m de altura e 10,9 m de comprimento.",
@@ -59,7 +59,7 @@
       "usarB": "A SR-9 (túnel e entrada leste) está fechada desde 30/09/2026 por uma queda de rochas, sem previsão de reabertura em 02/10."
     },
     {
-      "n": 7, "data": "2026-10-25", "semana": "dom", "de": "Zion", "para": "Zion", "estado": "UT",
+      "n": 7, "data": "2026-10-25", "utc": [-6, -6], "semana": "dom", "de": "Zion", "para": "Zion", "estado": "UT",
       "fuso": "Utah (MDT)", "km_planilha": 40, "horas_planilha": 0.7, "rota": "d07",
       "programacao": "Shuttle pelo cânion: Emerald Pools (Zion Lodge) e Riverside Walk (Temple of Sinawava).",
       "notas": "O veículo fica no camping: a estrada do cânion é só do shuttle. Horário reduzido a partir de 25/10: saídas do centro de visitantes das 7h às 17h; o último ônibus deixa o Temple of Sinawava às 18h15.",
@@ -67,7 +67,7 @@
       "pernoite": { "ponto": "watchman", "nome": "Watchman Campground", "tipo": "Parque", "alternativa": "Zion Canyon Campground", "preco": 30, "reserva": "recreation.gov", "notas": "Segunda noite. A pé do centro de visitantes e do shuttle." }
     },
     {
-      "n": 8, "data": "2026-10-26", "semana": "seg", "de": "Zion", "para": "Death Valley", "estado": "NV/CA",
+      "n": 8, "data": "2026-10-26", "utc": [-6, -7], "semana": "seg", "de": "Zion", "para": "Death Valley", "estado": "NV/CA",
       "fuso": "Volta ao horário do Pacífico (1 h a menos que Utah)", "km_planilha": 400, "horas_planilha": 5, "rota": "d08",
       "programacao": "Las Vegas no caminho; Zabriskie Point ao pôr do sol.",
       "notas": "Abasteça em Nevada (Las Vegas ou Pahrump): o combustível é bem mais barato que na Califórnia.",
@@ -75,7 +75,7 @@
       "pernoite": { "ponto": "furnace_creek", "nome": "Furnace Creek", "tipo": "Parque", "alternativa": "Sunset / Stovepipe Wells", "preco": 36, "reserva": "recreation.gov", "notas": "Furnace Creek é o único que aceita reserva em outubro. Aberto em 02/10." }
     },
     {
-      "n": 9, "data": "2026-10-27", "semana": "ter", "de": "Death Valley", "para": "Yosemite", "estado": "CA",
+      "n": 9, "data": "2026-10-27", "utc": [-7, -7], "semana": "ter", "de": "Death Valley", "para": "Yosemite", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 450, "horas_planilha": 6, "rota": "d09",
       "programacao": "Badwater e dunas de Mesquite cedo; Lone Pine, US-395 e Tioga Pass.",
       "notas": "O dia mais longo: ~10h30 de motorhome sem contar as paradas. Saia antes das 7h, ou faça Badwater na tarde do dia 8 (fica a 30 km do camping). O sol se põe ~18h em Yosemite: evite descer a Tioga Road no escuro. Ela estava aberta em 02/10, com atrasos por obras (seg a qui, 8h–15h30), e fecha com a primeira neve forte: confirme na véspera, antes de sair de Death Valley (NPS: 209-372-0200).",
@@ -90,7 +90,7 @@
       }
     },
     {
-      "n": 10, "data": "2026-10-28", "semana": "qua", "de": "Yosemite", "para": "Yosemite", "estado": "CA",
+      "n": 10, "data": "2026-10-28", "utc": [-7, -7], "semana": "qua", "de": "Yosemite", "para": "Yosemite", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 120, "horas_planilha": 1.5, "rota": "d10",
       "programacao": "Lower Yosemite Fall, Tunnel View e Mirror Lake (a pé, saindo do camping).",
       "notas": "Cachoeiras fracas em outubro: a Yosemite Falls costuma estar seca. A Glacier Point Road está fechada pelo incêndio Dome (01/10); pode haver fumaça de manhã no vale.",
@@ -98,7 +98,7 @@
       "pernoite": { "ponto": "upper_pines", "nome": "Upper Pines", "tipo": "Parque", "alternativa": "Wawona", "preco": 36, "reserva": "recreation.gov", "notas": "Segunda noite. Ursos ativos: use os armários de comida (bear lockers)." }
     },
     {
-      "n": 11, "data": "2026-10-29", "semana": "qui", "de": "Yosemite", "para": "Half Moon Bay", "estado": "CA",
+      "n": 11, "data": "2026-10-29", "utc": [-7, -7], "semana": "qui", "de": "Yosemite", "para": "Half Moon Bay", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 340, "horas_planilha": 4.5, "rota": "d11",
       "programacao": "Saída às 8h pela Hwy 120: depois de Groveland, desça pela New Priest Grade (fique na CA-120; não entre na Old Priest Grade, íngreme demais para motorhome). Tarde em San Francisco.",
       "notas": "Não durma com o veículo dentro de SF. Half Moon Bay fica 45 min ao sul. A Hwy 120 Oeste tem atrasos por obras em dias de semana.",
@@ -106,7 +106,7 @@
       "pernoite": { "ponto": "hmb_sb", "nome": "Half Moon Bay State Beach", "tipo": "Parque", "alternativa": "Pillar Point RV Park", "preco": 45, "reserva": "reservecalifornia.com", "notas": "45 min ao sul de SF. Evita o sufoco de estacionar na cidade." }
     },
     {
-      "n": 12, "data": "2026-10-30", "semana": "sex", "de": "Half Moon Bay", "para": "Morro Bay", "estado": "CA",
+      "n": 12, "data": "2026-10-30", "utc": [-7, -7], "semana": "sex", "de": "Half Moon Bay", "para": "Morro Bay", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 400, "horas_planilha": 6, "rota": "d12",
       "programacao": "Santa Cruz, Monterey e Big Sur pela Hwy 1 (Bixby Bridge, McWay Falls, Ragged Point).",
       "notas": "A Hwy 1 em Big Sur reabriu inteira em 14/09. Conte uns 20 min a mais: pare-e-siga em Mud Creek (seg a sáb, 7h–17h) e semáforo de pista única em Point Sur. É proibido estacionar perto da Bixby Bridge até ago/2027.",
@@ -122,7 +122,7 @@
       }
     },
     {
-      "n": 13, "data": "2026-10-31", "semana": "sáb", "de": "Morro Bay", "para": "Los Angeles", "estado": "CA",
+      "n": 13, "data": "2026-10-31", "utc": [-7, -7], "prazo": 12, "semana": "sáb", "de": "Morro Bay", "para": "Los Angeles", "estado": "CA",
       "fuso": "Califórnia (PDT). O horário de verão acaba na madrugada de 01/11", "km_planilha": 320, "horas_planilha": 3.5, "rota": "d13",
       "programacao": "Saída até ~6h30 (≈5h15 de motorhome até LA) para devolver o veículo até 12h, já abastecido e com os tanques esvaziados; depois, hotel perto do LAX.",
       "notas": "Sábado: confirme o horário de devolução da locadora (até 12h). Halloween em LA: hotel reservado com antecedência. A locadora está no mapa no aeroporto, como aproximação: troque pelo endereço dela quando souber.",

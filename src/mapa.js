@@ -83,7 +83,7 @@ export class Mapa {
     this.rotas = rotas;
     this.limites = limites;
     this.aoClicarRota = aoClicarRota;
-    this.grupos = { pernoites: [], dias: [], paradas: [], eu: [] };
+    this.grupos = { pernoites: [], dias: [], paradas: [], opcionais: [], eu: [] };
     this.base = new Map();   // estilos da OpenFreeMap já baixados
     this.pad = { top: 0, right: 0, bottom: 0, left: 0 };
     this.geracao = 0;

@@ -1,5 +1,5 @@
 // App da viagem: painel (roteiro, mapa, alertas, sobre), escolha do dia e da rota, e o que o mapa deve mostrar.
-import { $, $$, store, nf, fmtKm, fmtH, MOTORHOME, fmtData, fmtDia, esc, isDark, reduzMovimento, hojeISO, diasEntre, corDia, ICONE } from './util.js';
+import { $, $$, store, nf, fmtKm, fmtH, MOTORHOME, fmtData, fmtDia, esc, isDark, reduzMovimento, hojeISO, diasEntre, corDia, ICONE, TIPO_OPC, sol, fmtHora } from './util.js';
 import { resumoArmazenamento, pedirPersistencia, aparar } from './tilecache.js';
 
 // ---------- abertura ----------
@@ -27,10 +27,11 @@ async function lerJSON(u) {
   if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`);
   return r.json();
 }
-let roteiro, rotas, pontos, alertas;
+let roteiro, rotas, pontos, alertas, opcionais;
 try {
   progresso(0.1, 'Lendo o roteiro…');
-  [roteiro, rotas, pontos, alertas] = await Promise.all(['data/roteiro.json', 'data/rotas.geojson', 'data/pontos.json', 'data/alertas.json'].map(lerJSON));
+  [roteiro, rotas, pontos, alertas, opcionais] = await Promise.all([...['data/roteiro.json', 'data/rotas.geojson', 'data/pontos.json', 'data/alertas.json'].map(lerJSON),
+    lerJSON('data/opcionais.json').catch(() => ({ itens: [] }))]);   // sem os opcionais, o resto funciona
 } catch (e) {
   falhou(`Não deu para ler os dados da viagem (${e.message}). Confira a conexão e recarregue.`);
   throw e;
@@ -55,6 +56,10 @@ let sel = null;   // null = viagem toda · { tipo: 'dia', n } · { tipo: 'opc', 
 let verB = store.get('planob') === '1';
 let verOpc = store.get('opc') === '1';
 let mapa = null;
+let filtroOp = 'todos';   // filtro dos opcionais do dia: 'todos', 'quero' ou um tipo
+/** opcionais que o casal marcou como "quero fazer" (guardado no aparelho) */
+const quero = new Set((() => { try { return JSON.parse(store.get('quero') ?? '[]'); } catch { return []; } })());
+function setQuero(id, on) { if (on) quero.add(id); else quero.delete(id); store.set('quero', JSON.stringify([...quero])); }
 
 /** o dia usa o plano B? (escolha guardada; senão, o que o roteiro manda) */
 function usaB(n) {
@@ -106,6 +111,48 @@ function totais() {
     km += f.properties.km; h += f.properties.horas;
   }
   return { km, h };
+}
+
+// ---------- opcionais do dia (trilhas, mirantes, passeios…) ----------
+const opPorId = new Map(opcionais.itens.map((o) => [o.id, o]));
+/** opcionais de um dia (os das etapas O1–O3 ficam nas etapas) */
+const opsDoDia = (n) => opcionais.itens.filter((o) => !o.etapa && (o.dia === n || o.tambem?.includes(n)));
+const opsDaEtapa = (id) => opcionais.itens.filter((o) => o.etapa === id);
+/** distância (km) de um ponto até uma linha e a posição ao longo dela (para pôr os opcionais na ordem do caminho) */
+function posNaRota(coords, lon, lat) {
+  const k = Math.cos(lat * Math.PI / 180);
+  let melhor = Infinity, ordem = 0;
+  for (let i = 0; i < coords.length - 1; i++) {
+    const ax = (coords[i][0] - lon) * k, ay = coords[i][1] - lat, bx = (coords[i + 1][0] - lon) * k, by = coords[i + 1][1] - lat;
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / L)) : 0;
+    const px = ax + t * dx, py = ay + t * dy, dd = px * px + py * py;
+    if (dd < melhor) { melhor = dd; ordem = i + t; }
+  }
+  return { km: Math.sqrt(melhor) * 111.32, ordem };
+}
+const ORDEM_P = { imperdivel: 0, vale: 1, extra: 2 };
+/** opcionais do dia na ordem em que aparecem no caminho */
+function opsOrdenados(d) {
+  const coords = rotaAtiva(d).geometry.coordinates;
+  return opsDoDia(d.n).map((o) => ({ o, ...posNaRota(coords, o.lon, o.lat) }))
+    .sort((a, b) => a.ordem - b.ordem || ORDEM_P[a.o.prioridade] - ORDEM_P[b.o.prioridade]);
+}
+/**
+ * Tempo do dia: horas de luz (do nascer no começo ao pôr do sol no fim, cada um no seu fuso), estrada de motorhome e
+ * opcionais marcados. Tudo em horas "de relógio corrido" (o fuso pode mudar no meio do dia).
+ */
+function tempoDoDia(d) {
+  const a = ativo(d), P = rotaPorId.get(a.rota).properties;
+  const ini = pontos[inicioDe(d)], fim = pontos[a.pernoite.ponto];
+  const [u0, u1] = d.utc ?? [-7, -7];
+  const nasce = sol(ini.lat, ini.lon, d.data, u0).nasce, poe = sol(fim.lat, fim.lon, d.data, u1).poe;
+  const comeco = Math.max(nasce, d.livre_desde ?? 0);
+  const luz = (poe - u1) - (comeco - u0);
+  const estrada = P.tipo === 'shuttle' ? 0 : horasMotorhome(P.horas);
+  const marcados = opsDoDia(d.n).filter((o) => quero.has(o.id) && o.dia === d.n);
+  const opc = marcados.reduce((s, o) => s + (o.duracao_h || 0), 0);
+  return { nasce, poe, comeco, luz, estrada, opc, n: marcados.length, ini, fim, mudaFuso: u0 !== u1 };
 }
 
 // ---------- hoje ----------
@@ -192,7 +239,22 @@ function marcadores() {
       prioridade: 80 - k, zoomNome: 6, essencial: true, aoClicar: () => mapa.voar(llPonto(id), 12.5),
     }));
   }
-  return { pern, rotulosDias, paradas };
+  // opcionais: os do dia escolhido (respeitando o filtro) ou os da etapa; na viagem toda, só os marcados
+  const lista = selDia ? opsDoDia(selDia.n).filter(passaFiltro)
+    : sel?.tipo === 'opc' ? opsDaEtapa(sel.id)
+      : opcionais.itens.filter((o) => quero.has(o.id));
+  const ops = lista.map((o) => {
+    const q = quero.has(o.id), t = TIPO_OPC[o.tipo] ?? TIPO_OPC.atracao;
+    return {
+      chave: `x:${o.id}`, lngLat: [o.lon, o.lat], cls: `mk--op${q ? ' is-quero' : ''}${o.estado === 'fechado' ? ' is-off' : ''}`, style: `--t:${t.cor}`,
+      html: `<span class="g">${t.icone}</span><span class="nm">${esc(o.nome)}</span>`,
+      titulo: `${t.nome}: ${o.nome}${q ? ' (quero fazer)' : ''}`,
+      prioridade: q ? 60 : o.prioridade === 'imperdivel' ? 45 : o.prioridade === 'vale' ? 35 : 25,
+      zoomNome: sel ? (q || o.prioridade === 'imperdivel' ? 8 : 10) : 99,
+      aoClicar: () => verOp(o.id),
+    };
+  });
+  return { pern, rotulosDias, paradas, ops };
 }
 
 function atualizarMapa() {
@@ -202,7 +264,11 @@ function atualizarMapa() {
   mapa.setMarcadores('pernoites', m.pern);
   mapa.setMarcadores('dias', m.rotulosDias);
   mapa.setMarcadores('paradas', m.paradas);
+  mapa.setMarcadores('opcionais', m.ops);
 }
+/** só os marcadores dos opcionais (ao marcar "quero fazer" ou trocar o filtro, sem refazer as linhas) */
+function atualizarOps() { if (mapa) mapa.setMarcadores('opcionais', marcadores().ops); }
+const passaFiltro = (o) => filtroOp === 'todos' || (filtroOp === 'quero' ? quero.has(o.id) : o.tipo === filtroOp);
 
 // ---------- menu: barra de ícones + painel (largura ajustável no computador; gaveta no celular) ----------
 const side = $('#side'), pane = $('#pane'), paneBody = $('#pane-body'), root = document.documentElement;
@@ -341,13 +407,15 @@ function setTheme(t) {
   if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
   store.set('theme', t);
   aplicarTema();
+  $('meta[name="theme-color"]')?.setAttribute('content', isDark() ? '#0f1513' : '#e9ece4');
 }
 {
-  const t = ['light', 'dark'].includes(store.get('theme')) ? store.get('theme') : 'auto';
+  const t = ['light', 'dark', 'auto'].includes(store.get('theme')) ? store.get('theme') : 'light';   // claro por padrão
   $(`#th-${t}`).checked = true;
   $$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => { if (r.checked) setTheme(r.value); }));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', aplicarTema);
   $('#sv-mapa').className = `sv ${isDark() ? 'sv--dark' : 'sv--map'}`;
+  $('meta[name="theme-color"]')?.setAttribute('content', isDark() ? '#0f1513' : '#e9ece4');
 }
 
 // ---------- painel: a viagem toda ----------
@@ -365,6 +433,8 @@ function renderViagem() {
     if (usaB(d.n)) tags.push('<span class="tag tag--b">Plano B</span>');
     else if (d.planoB) tags.push('<span class="tag tag--alt">Tem plano B</span>');
     if (P.tipo === 'shuttle') tags.push('<span class="tag tag--bus">Shuttle</span>');
+    const nq = opsDoDia(d.n).filter((o) => o.dia === d.n && quero.has(o.id)).length;
+    if (nq) tags.push(`<span class="tag tag--today">★ ${nq}</span>`);
     if (al.length) tags.push(`<span class="tag" style="--c:${COR_G[gravMax(al)]}">${al.length} alerta${al.length > 1 ? 's' : ''}</span>`);
     const tempo = P.tipo === 'shuttle' ? 'de shuttle' : `~${fmtH(horasMotorhome(P.horas))}`;
     return `<li><button type="button" class="day${d.n === diaDeHoje ? ' is-today' : ''}" data-dia="${d.n}" style="--c:${corDia(d.n)}">
@@ -414,6 +484,98 @@ function htmlAlerta(a, { comDias = false } = {}) {
     ${fontes ? `<div class="src">${fontes}</div>` : ''}</li>`;
 }
 
+/** um opcional (cartão com "quero fazer", detalhes e botões) */
+function htmlOp(o, { dia } = {}) {
+  const t = TIPO_OPC[o.tipo] ?? TIPO_OPC.atracao, q = quero.has(o.id);
+  const meta = [t.nome, o.duracao_h ? `~${fmtH(o.duracao_h)}` : '',
+    o.distancia_km ? `${nf(o.distancia_km, o.distancia_km < 10 ? 1 : 0)} km${o.desnivel_m ? `, +${nf(o.desnivel_m)} m` : ''}` : '',
+    o.dificuldade ? { facil: 'fácil', moderada: 'moderada', dificil: 'difícil' }[o.dificuldade] : ''].filter(Boolean).join(' · ');
+  const det = [['Como chegar', o.acesso], ['Melhor hora', o.melhor_hora], ['Custo', o.custo], ['Reserva', o.reserva], ['Motorhome', o.motorhome], ['Dica', o.dica]]
+    .filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+  const outroDia = dia && o.dia !== dia ? `<span class="tag" style="--c:var(--ink-soft)">melhor no dia ${o.dia}</span>` : '';
+  const prio = o.prioridade === 'imperdivel' ? '<span class="tag tag--today">Imperdível</span>' : '';
+  const est = o.estado === 'fechado' ? 'fechado' : o.estado === 'restricao' ? 'restrição' : o.estado === 'nao_confirmado' ? 'sem confirmação' : '';
+  let fonte = ''; try { fonte = o.fonte ? new URL(o.fonte).hostname.replace(/^www\./, '') : ''; } catch { /* sem link */ }
+  return `<li class="op${q ? ' is-quero' : ''}${o.estado === 'fechado' ? ' is-off' : ''}" id="op-${esc(o.id)}" style="--t:${t.cor}">
+    <div class="op-top">
+      <i class="op-ic" aria-hidden="true">${t.icone}</i>
+      <div class="op-tt"><b>${esc(o.nome)}</b><small>${esc(meta)}</small></div>
+      <button type="button" class="op-q" data-quero="${esc(o.id)}" aria-pressed="${q}" aria-label="Quero fazer: ${esc(o.nome)}" title="Quero fazer">${ICONE.estrela}</button>
+    </div>
+    ${prio || outroDia || est ? `<div class="op-tags">${prio}${outroDia}${est ? `<span class="tag" style="--c:var(--g-${o.estado === 'fechado' ? 'alta' : 'media'})">${est}</span>` : ''}</div>` : ''}
+    <p class="op-res">${esc(o.resumo)}</p>
+    ${o.situacao ? `<p class="op-st" data-e="${esc(o.estado)}">${esc(o.situacao)}</p>` : ''}
+    <details class="op-mais"><summary>Detalhes</summary><dl>${det}</dl>
+      <div class="op-acts"><button type="button" class="btn btn--small" data-op-mapa="${esc(o.id)}">${ICONE.enquadrar}No mapa</button>
+        <a class="btn btn--small" href="https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lon}&travelmode=driving" target="_blank" rel="noopener">${ICONE.navegar}Ir até lá</a>
+        ${o.fonte ? `<a class="btn btn--small" href="${esc(o.fonte)}" target="_blank" rel="noopener">${esc(fonte || 'Fonte')}</a>` : ''}</div>
+    </details></li>`;
+}
+/** quanto o dia comporta: estrada + opcionais marcados × horas de luz */
+function htmlTempo(d) {
+  const T = tempoDoDia(d);
+  if (d.prazo) {
+    return `<section class="blk"><h3>Tempo do dia <span>${ICONE.sol}nasce ${fmtHora(T.nasce)}</span></h3>
+      <p class="cc-warn">Devolução até ${d.prazo}h: com ~${fmtH(T.estrada)} de estrada, saia até ~${fmtHora(d.prazo - T.estrada - 0.5)}, ainda no escuro. Os opcionais deste dia são para depois da devolução, sem o veículo.</p></section>`;
+  }
+  const total = T.estrada + T.opc, sobra = T.luz - total, escala = Math.max(T.luz, total);
+  const pc = (h) => `${Math.max(0, (h / escala) * 100).toFixed(1)}%`;
+  const luzTxt = T.mudaFuso ? `nasce ${fmtHora(T.nasce)} (${esc(T.ini.nome)}) · põe ${fmtHora(T.poe)} (${esc(T.fim.nome)})` : `${fmtHora(T.nasce)}–${fmtHora(T.poe)}`;
+  const partes = [T.estrada ? `~${fmtH(T.estrada)} de estrada` : 'sem estrada (shuttle)', T.n ? `${fmtH(T.opc)} de ${T.n === 1 ? '1 opcional marcado' : `${T.n} opcionais marcados`}` : 'nenhum opcional marcado'];
+  const fim = sobra >= 0.75 ? `Sobram ~${fmtH(sobra)} para comer, descansar e imprevistos.`
+    : sobra >= 0 ? 'Fica apertado: quase sem folga para comer e para imprevistos.'
+      : `Passa ~${fmtH(-sobra)} do tempo de luz: tire algo, saia mais cedo ou dirija no escuro.`;
+  return `<section class="blk"><h3>Tempo do dia <span>${ICONE.sol}${luzTxt}</span></h3>
+    <div class="tbar${sobra < 0 ? ' is-over' : ''}" role="img" aria-label="${esc(partes.join(' + '))}, de ${fmtH(T.luz)} de luz">
+      <span class="tb-est" style="width:${pc(T.estrada)};--c:${corDia(d.n)}"></span><span class="tb-opc" style="width:${pc(T.opc)}"></span>
+      <i class="tb-luz" style="left:${pc(T.luz)}"></i></div>
+    <p class="hint">${partes.join(' + ')}${T.n || T.estrada ? ` = ${fmtH(total)}` : ''}, de ${fmtH(T.luz)} de luz${d.livre_desde ? ` (a partir das ${d.livre_desde}h, depois da retirada)` : ''}. ${fim}</p>
+    </section>`;
+}
+/** lista dos opcionais do dia, com filtro por tipo */
+function htmlOpsDoDia(d) {
+  const lista = opsOrdenados(d);
+  if (!lista.length) return '';
+  const tipos = [...new Set(lista.map((x) => x.o.tipo))].sort((a, b) => Object.keys(TIPO_OPC).indexOf(a) - Object.keys(TIPO_OPC).indexOf(b));
+  if (filtroOp !== 'todos' && filtroOp !== 'quero' && !tipos.includes(filtroOp)) filtroOp = 'todos';
+  const nq = lista.filter((x) => quero.has(x.o.id)).length;
+  const chip = (v, txt) => `<input type="radio" name="fop-${d.n}" id="fop-${d.n}-${v}" value="${v}"${filtroOp === v ? ' checked' : ''}><label for="fop-${d.n}-${v}">${txt}</label>`;
+  const vis = lista.filter((x) => passaFiltro(x.o));
+  return `<section class="blk" id="ops-dia"><h3>Opcionais do dia <span>${lista.length}${nq ? ` · ${nq} marcado${nq > 1 ? 's' : ''}` : ''}</span></h3>
+    <div class="apt-modes" role="radiogroup" aria-label="Filtrar os opcionais">${chip('todos', 'Todos')}${chip('quero', `${ICONE.estrela}Marcados`)}${tipos.map((t) => chip(t, TIPO_OPC[t].plural)).join('')}</div>
+    <p class="hint">Na ordem do caminho. Toque na estrela para marcar o que quer fazer: o tempo do dia e o mapa mostram os marcados.</p>
+    ${vis.length ? `<ul class="ops">${vis.map((x) => htmlOp(x.o, { dia: d.n })).join('')}</ul>` : '<p class="hint">Nenhum opcional neste filtro.</p>'}
+    <p class="cc-note">Pesquisados em ${fmtDia(opcionais.conferido_em)} nas páginas oficiais; horários, taxas e fechamentos mudam: confira antes de ir.</p></section>`;
+}
+/** abre o dia do opcional e mostra o cartão dele */
+function verOp(id) {
+  const o = opPorId.get(id);
+  if (!o) return;
+  if (o.etapa) { showPane('mapa', { sheet: 'half' }); if (!(sel?.tipo === 'opc' && sel.id === o.etapa)) abrirOpcional(o.etapa); }
+  else {
+    const n = sel?.tipo === 'dia' && (o.dia === sel.n || o.tambem?.includes(sel.n)) ? sel.n : o.dia;
+    if (!passaFiltro(o)) filtroOp = 'todos';
+    if (!(sel?.tipo === 'dia' && sel.n === n)) abrirDia(n, { foco: null }); else { renderDia(n); showPane('roteiro', { sheet: 'half' }); }
+  }
+  requestAnimationFrame(() => {
+    const el = document.getElementById(`op-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: reduzMovimento() ? 'auto' : 'smooth' });
+    el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash');
+  });
+}
+function marcarQuero(id, on) {
+  setQuero(id, on);
+  $$(`[data-quero="${CSS.escape(id)}"]`).forEach((b) => { b.setAttribute('aria-pressed', String(on)); b.closest('.op')?.classList.toggle('is-quero', on); });
+  if (sel?.tipo === 'dia') {   // o tempo do dia e a contagem mudam
+    const tempo = $('#day .tbar')?.closest('.blk'), d = diaPorN.get(sel.n);
+    if (tempo) tempo.outerHTML = htmlTempo(d);
+    const h3 = $('#ops-dia h3 span'), lista = opsDoDia(d.n), nq = lista.filter((o) => quero.has(o.id)).length;
+    if (h3) h3.textContent = `${lista.length}${nq ? ` · ${nq} marcado${nq > 1 ? 's' : ''}` : ''}`;
+  }
+  atualizarOps();
+  anunciar(on ? `Marcado: ${opPorId.get(id)?.nome}` : `Desmarcado: ${opPorId.get(id)?.nome}`);
+}
 function renderDia(n) {
   const d = diaPorN.get(n), a = ativo(d), f = rotaPorId.get(a.rota), P = f.properties, cor = corDia(n);
   const shuttle = P.tipo === 'shuttle';
@@ -475,12 +637,25 @@ function renderDia(n) {
     ${escolha}
     <section class="blk"><h3>Programação</h3><p>${esc(a.programacao)}</p></section>
     <section class="blk"><h3>Paradas <span>${shuttle ? 'de shuttle' : fmtKm(P.km)}</span></h3><ol class="stops" style="--c:${cor}">${lis}</ol></section>
+    ${htmlTempo(d)}
+    ${htmlOpsDoDia(d)}
     <section class="blk"><h3>Pernoite</h3>${pernoite}</section>
     <section class="blk"><h3>Para saber</h3><p class="cc-water">${esc(a.notas)}</p></section>
     ${al.length ? `<section class="blk"><h3>Alertas do dia <span>conferido em ${fmtDia(alertas.conferido_em)}</span></h3><ul class="alerts">${al.map((x) => htmlAlerta(x)).join('')}</ul></section>` : ''}
     <p class="cc-note">${P.obs ? `${esc(P.obs)} ` : ''}Na planilha: ${nf(d.km_planilha)} km, ${fmtH(d.horas_planilha)}.</p>`;
 }
-$('#day').addEventListener('click', async (e) => {
+/** estrela "quero fazer" e "No mapa" dos cartões de opcional; devolve true se tratou o clique */
+function cliqueOp(e) {
+  const qb = e.target.closest('[data-quero]');
+  if (qb) { marcarQuero(qb.dataset.quero, qb.getAttribute('aria-pressed') !== 'true'); return true; }
+  const om = e.target.closest('[data-op-mapa]');
+  if (om) {
+    const o = opPorId.get(om.dataset.opMapa);
+    if (o) { if (mqPhone.matches) setSheet('peek'); depoisDaGaveta(() => mapa?.voar([o.lon, o.lat], 13)); }
+    return true;
+  }
+  return false;
+}$('#day').addEventListener('click', async (e) => {
   const act = e.target.closest('[data-act]')?.dataset.act;
   const n = sel?.tipo === 'dia' ? sel.n : null;
   if (act === 'voltar') return mostrarViagem();
@@ -488,6 +663,7 @@ $('#day').addEventListener('click', async (e) => {
   if (act === 'prox' && n < dias.length) return abrirDia(n + 1, { foco: 'prox' });
   if (act === 'enquadrar' && n) { if (mqPhone.matches) setSheet('peek'); return depoisDaGaveta(() => enquadrarDia(n)); }
   if (act === 'compartilhar' && n) return compartilhar(n);
+  if (cliqueOp(e)) return;
   const go = e.target.closest('[data-ponto]');
   if (go) {
     if (mqPhone.matches) setSheet('peek');
@@ -495,6 +671,14 @@ $('#day').addEventListener('click', async (e) => {
   }
 });
 $('#day').addEventListener('change', (e) => {
+  const fo = e.target.closest('input[name^="fop-"]');
+  if (fo && sel?.n) {   // filtro dos opcionais: refaz só a lista e os marcadores
+    filtroOp = fo.value;
+    $('#ops-dia').outerHTML = htmlOpsDoDia(diaPorN.get(sel.n));
+    $(`#fop-${sel.n}-${fo.value}`)?.focus({ preventScroll: true });
+    atualizarOps();
+    return;
+  }
   const r = e.target.closest('input[name^="rota-"]');
   if (!r || !sel?.n) return;
   const n = sel.n;
@@ -552,10 +736,12 @@ function renderOpcionais() {
     return `<button type="button" class="opc" data-opc="${o.id}" aria-pressed="${on}"><i>${o.id.replace(/^O/, '')}</i>
       <b>${esc(o.de)} → ${esc(o.para)}</b><small>${fmtKm(P.km)} · ~${fmtH(horasMotorhome(P.horas))} · a partir do dia ${o.dia}</small></button>
       ${on ? `<div class="blk" style="padding:4px 2px 6px"><p>${esc(o.programacao)} Pernoite: ${esc(o.pernoite)} (${esc(o.tipo)}).</p>
-        <p class="hint">${esc(o.notas)}</p>${al.length ? `<ul class="alerts">${al.map((a) => htmlAlerta(a)).join('')}</ul>` : ''}</div>` : ''}`;
+        <p class="hint">${esc(o.notas)}</p>${al.length ? `<ul class="alerts">${al.map((a) => htmlAlerta(a)).join('')}</ul>` : ''}
+        ${opsDaEtapa(o.id).length ? `<ul class="ops">${opsDaEtapa(o.id).map((x) => htmlOp(x)).join('')}</ul>` : ''}</div>` : ''}`;
   }).join('');
 }
 $('#opc-list').addEventListener('click', (e) => {
+  if (cliqueOp(e)) return;
   const b = e.target.closest('[data-opc]');
   if (!b) return;
   const id = b.dataset.opc;

@@ -47,6 +47,27 @@ export function diasEntre(a, b) {
   return Math.round((t(b) - t(a)) / 864e5);
 }
 
+/**
+ * Nascer e pôr do sol (algoritmo da NOAA, erro de ~1 min). iso = "AAAA-MM-DD"; utc = fuso em horas (ex.: −7).
+ * Devolve { nasce, poe } em horas locais decimais (ex.: 6.95 = 6h57).
+ */
+export function sol(lat, lon, iso, utc) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const n = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 1)) / 864e5) + 1;
+  const g = (2 * Math.PI / 365) * (n - 1);
+  const eq = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g));
+  const dec = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g)
+    - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const r = Math.PI / 180, la = lat * r;
+  const ha = Math.acos(Math.cos(90.833 * r) / (Math.cos(la) * Math.cos(dec)) - Math.tan(la) * Math.tan(dec)) / r;
+  return { nasce: (720 - 4 * (lon + ha) - eq) / 60 + utc, poe: (720 - 4 * (lon - ha) - eq) / 60 + utc };
+}
+/** horas decimais → "18h05" */
+export function fmtHora(h) {
+  let min = Math.round(h * 60);
+  return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+}
+
 // uma cor por dia, do vermelho (começo) ao roxo (fim): dá para ver a sequência no mapa
 export const COR_DIA = ['#c8324b', '#dc5a32', '#e58a1f', '#cf9f0c', '#9fa21f', '#62a33a', '#2f9e5b',
   '#14998a', '#1b8bb0', '#2f6fc0', '#5a5ccb', '#8450c0', '#b04aa5'];
@@ -62,4 +83,15 @@ export const ICONE = {
   voltar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>',
   seguir: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg>',
   enquadrar: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  estrela: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8Z"/></svg>',
+  sol: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+};
+// um ícone por tipo de opcional
+export const TIPO_OPC = {
+  trilha: { nome: 'Trilha', plural: 'Trilhas', cor: '#2f8a3c', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5c1.8 0 2.8 1.9 2.8 4.2S9.9 12.5 8 12.5 5.2 10 5.2 7.7 6.2 3.5 8 3.5ZM6.2 14.5h3.6M16 9c1.8 0 2.8 1.9 2.8 4.2S17.9 18 16 18s-2.8-2.5-2.8-4.8S14.2 9 16 9ZM14.2 20h3.6"/></svg>' },
+  mirante: { nome: 'Mirante', plural: 'Mirantes', cor: '#1e78b4', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>' },
+  passeio: { nome: 'Passeio', plural: 'Passeios', cor: '#14897c', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M6 16V10a4 4 0 0 1 8 0v4a4 4 0 0 0 8 0M18 8v0"/></svg>' },
+  atracao: { nome: 'Atração', plural: 'Atrações', cor: '#7a4fb3', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>' },
+  comida: { nome: 'Comida', plural: 'Comida', cor: '#b5532a', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18M4.5 3v5a2.5 2.5 0 0 0 5 0V3M17 21V3c-2.2 0-3.5 2.5-3.5 6s1.3 4 3.5 4"/></svg>' },
+  pratico: { nome: 'Prático', plural: 'Prático', cor: '#6b7770', icone: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c3.5 4.6 6 8 6 11a6 6 0 0 1-12 0c0-3 2.5-6.4 6-11Z"/></svg>' },
 };

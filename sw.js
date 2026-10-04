@@ -10,7 +10,7 @@ const FONTES = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@5
 const CASCO = [
   './', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-180.png',
   './src/app.js', './src/mapa.js', './src/tilecache.js', './src/util.js',
-  './data/roteiro.json', './data/rotas.geojson', './data/pontos.json', './data/alertas.json',
+  './data/roteiro.json', './data/rotas.geojson', './data/pontos.json', './data/alertas.json', './data/opcionais.json',
 ];
 const LIBS_ARQ = [`${ML}maplibre-gl.mjs`, `${ML}maplibre-gl-shared.mjs`, `${ML}maplibre-gl-worker.mjs`, `${ML}maplibre-gl.css`];
 // de fora, só estes servidores passam pelo service worker (o resto, como os blocos do mapa, vai direto)

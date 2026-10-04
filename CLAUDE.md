@@ -58,6 +58,9 @@ data/roteiro.json dias (de/para, fuso, rota, paradas, pernoite, notas, planoB {r
 data/rotas.geojson 20 linhas (d01–d13, planos B d06b/d09b/d12b/d13b, opcionais o1–o3), com km, horas (carro), trechos
 data/pontos.json  65 pontos { nome, lat, lon }
 data/alertas.json situação de estradas/parques conferida na web em 04/10/2026 (itens com gravidade, dias, fontes)
+data/opcionais.json opcionais de cada dia (trilha, mirante, passeio, atracao, comida, pratico): coordenadas, duração,
+                  acesso, custo, reserva, motorhome, estado em out/2026; 'etapa' = O1–O3. O app mostra na ficha do dia
+                  (na ordem do caminho, filtro por tipo, estrela "quero fazer" guardada no aparelho) e no mapa
 tools/build_rotas.ps1 + rotas_entrada.json   pontos (conferidos no Nominatim) e rotas (OSRM; routing.openstreetmap.de
                   para o shuttle de Zion); passagens "~id" forçam o caminho (ex.: New Priest Grade); cache em tools/cache
 tools/make_icons.ps1  ícones PNG (System.Drawing)
@@ -76,6 +79,9 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
   viagem"; fica guardado o que foi visto. Alternativas estudadas: pedir permissão à OpenFreeMap; pacote do USGS
   (domínio público, exportação permitida); .pmtiles próprio extraído da Protomaps no Actions.
 - Alertas são um retrato de 04/10/2026; o app diz a data e manda conferir na véspera.
+- Tema claro por padrão (o João pediu); "Automático" e "Escuro" ficam guardados se escolhidos.
+- "Tempo do dia": horas de luz (nascer no começo, pôr no fim, cada um no seu fuso: `utc` [início, fim] no roteiro;
+  dia 1 começa às 14h, `livre_desde`; dia 13 tem `prazo` de devolução) × estrada de motorhome + opcionais marcados.
 
 ## Preferências do João
 
