@@ -38,9 +38,9 @@
     {
       "n": 5, "data": "2026-10-23", "utc": [-7, -7], "semana": "sex", "de": "Grand Canyon", "para": "Page", "estado": "AZ",
       "fuso": "Arizona (MST). O Antelope Canyon fica em terra Navajo, que está 1 h à frente: confira em que hora está marcado o tour", "km_planilha": 220, "horas_planilha": 3, "rota": "d05",
-      "programacao": "Saída pela Desert View; Horseshoe Bend e Antelope Canyon.",
-      "notas": "Antelope Canyon só com tour guiado, reservado com antecedência. Estacionamento do Horseshoe Bend: US$ 10 (a prefeitura não aceita o passe dos parques).",
-      "paradas": ["desert_view", "cameron", "horseshoe_bend", "antelope_canyon", "page_cg"],
+      "programacao": "Saída pela Desert View; Horseshoe Bend no fim da tarde. Antelope Canyon é opcional (só com tour guiado).",
+      "notas": "Estacionamento do Horseshoe Bend: US$ 10 (a prefeitura não aceita o passe dos parques). Se forem ao Antelope Canyon (opcional), é só com tour guiado reservado com antecedência, e o horário do tour costuma estar na hora de Navajo (1 h à frente do Arizona).",
+      "paradas": ["desert_view", "cameron", "horseshoe_bend", "page_cg"],
       "pernoite": { "ponto": "page_cg", "nome": "Page Lake Powell Campground", "tipo": "Privado", "alternativa": "Wahweap RV & Campground", "preco": 60, "reserva": "Direto", "notas": "Hookups completos. Bom para reabastecer água depois do Grand Canyon." }
     },
     {

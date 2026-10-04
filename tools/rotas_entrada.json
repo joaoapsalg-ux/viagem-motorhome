@@ -81,7 +81,7 @@
     { "id": "d03", "km_planilha": 300,  "tipo": "principal", "dia": 3,  "perfil": "carro", "pontos": ["blake_ranch", "hackberry", "seligman", "williams", "mather"],
       "obs": "Route 66 antiga de Kingman a Seligman (Hackberry, Truxton, Peach Springs); de Seligman a Williams pela I-40. Saindo do Blake Ranch, volta ~20 km pela I-40 até Kingman." },
     { "id": "d04", "km_planilha": 100,  "tipo": "principal", "dia": 4,  "perfil": "carro", "pontos": ["mather", "grandview", "desert_view", "mather"] },
-    { "id": "d05", "km_planilha": 220,  "tipo": "principal", "dia": 5,  "perfil": "carro", "pontos": ["mather", "desert_view", "cameron", "horseshoe_bend", "antelope_canyon", "page_cg"] },
+    { "id": "d05", "km_planilha": 220,  "tipo": "principal", "dia": 5,  "perfil": "carro", "pontos": ["mather", "desert_view", "cameron", "horseshoe_bend", "page_cg"] },
     { "id": "d06", "km_planilha": 190,  "tipo": "principal", "dia": 6,  "perfil": "carro", "pontos": ["page_cg", "kanab", "mt_carmel", "canyon_overlook", "watchman"],
       "obs": "Pelo túnel Zion–Mount Carmel (entrada leste). Sem escolta desde 07/06/2026: só passam veículos até 2,39 m de largura (com espelhos), 3,45 m de altura e 10,9 m de comprimento. A SR-9 está fechada desde 30/09/2026 por queda de rochas; enquanto não reabrir, usar o desvio pela entrada sul (d06b)." },
     { "id": "d06b", "km_planilha": 250, "tipo": "planoB",    "dia": 6,  "perfil": "carro", "pontos": ["page_cg", "kanab", "fredonia", "hurricane", "watchman"],

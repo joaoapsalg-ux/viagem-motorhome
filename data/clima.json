@@ -1,0 +1,8 @@
+{
+  "fonte": "Open-Meteo Historical Weather API (archive-api.open-meteo.com), modelo ERA5",
+  "descricao": "Ainda não gerado: rode tools/build_clima.ps1 para calcular a normal da época de cada pernoite. Enquanto isso o app mostra só a previsão (16 dias).",
+  "anos": [2016, 2025],
+  "janela_dias": 3,
+  "gerado_em": null,
+  "lugares": {}
+}

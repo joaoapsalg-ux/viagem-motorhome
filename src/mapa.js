@@ -22,6 +22,13 @@ const SAT = {
   tiles: ['tc://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'],
   attribution: 'Satélite: <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank" rel="noopener">USGS The National Map</a> (USDA NAIP)',
 };
+// mapa topográfico do USGS (domínio público, exportação de blocos permitida): aparece quando não há sinal, por baixo
+// do mapa vetorial; é ele que o pacote "Guardar o mapa da viagem" baixa
+export const TOPO_URL = 'https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}';
+const TOPO = {
+  type: 'raster', tileSize: 256, maxzoom: 16, tiles: [TOPO_URL.replace('https://', 'tc://')],
+  attribution: 'Topográfico: <a href="https://www.usgs.gov/programs/national-geospatial-program/national-map" target="_blank" rel="noopener">USGS The National Map</a>',
+};
 const EXAGERO = 1.4;
 
 // propriedades booleanas das linhas (o app sempre manda; to-boolean evita erro se faltar)
@@ -76,9 +83,9 @@ export class Mapa {
     return m;
   }
 
-  constructor(el, { escuro, fundo, sombra, relevo3D, rotas, limites, aoClicarRota }) {
+  constructor(el, { escuro, fundo, sombra, relevo3D, rotas, limites, aoClicarRota, semSinal = false }) {
     this.el = el;
-    this.st = { escuro, fundo, sombra, relevo3D };
+    this.st = { escuro, fundo, sombra, relevo3D, semSinal };
     this.escuroReal = escuro;   // o estilo em uso (sem sinal, pode ser o do outro tema)
     this.rotas = rotas;
     this.limites = limites;
@@ -113,6 +120,7 @@ export class Mapa {
     s.sources['dem-relevo'] = { ...DEM };
     s.sources['dem-terreno'] = { ...DEM };
     s.sources.satelite = { ...SAT };
+    s.sources.topo = { ...TOPO };
     s.sources.rotas = { type: 'geojson', data: this.rotas };
     const sat = st.fundo === 'satelite';
     // satélite e sombra do relevo: por cima do chão (terra, água) e por baixo das estradas
@@ -121,6 +129,8 @@ export class Mapa {
     s.layers.splice(i, 0,
       { id: 'satelite', type: 'raster', source: 'satelite', layout: { visibility: sat ? 'visible' : 'none' }, paint: { 'raster-fade-duration': 150 } },
       { id: 'sombra', type: 'hillshade', source: 'dem-relevo', layout: { visibility: st.sombra && !sat ? 'visible' : 'none' }, paint: hillshade(escuro) });
+    // topográfico do USGS logo acima do fundo: sem sinal, aparece onde o mapa vetorial não foi guardado
+    s.layers.splice(1, 0, { id: 'topo', type: 'raster', source: 'topo', layout: { visibility: st.semSinal ? 'visible' : 'none' }, paint: { 'raster-fade-duration': 0, 'raster-opacity': escuro ? 0.75 : 1 } });
     // linhas da viagem: por cima das estradas, por baixo dos nomes das cidades
     let j = s.layers.findIndex((l) => /^(label_|place_)/.test(l.id));
     if (j < 0) j = s.layers.length;
@@ -246,6 +256,7 @@ export class Mapa {
    * reaproveitados (só mudam classe e texto), em vez de recriados.
    */
   setMarcadores(grupo, itens) {
+    this.grupos[grupo] ??= [];   // grupos novos (dos módulos) nascem vazios
     const antigos = new Map(this.grupos[grupo].map((m) => [m.it.chave, m]));
     const medir = [];
     const aplicar = (m) => {
@@ -396,6 +407,11 @@ export class Mapa {
   async setFundo(fundo) {
     if (fundo === this.st.fundo) return 'ok';
     return this.#trocarEstilo({ fundo });   // o contorno das linhas muda (branco sobre o satélite)
+  }
+  /** sem sinal: mostra o topográfico do USGS por baixo (onde o mapa vetorial não foi guardado) */
+  setSemSinal(on) {
+    this.st.semSinal = on;
+    if (this.map.getLayer('topo')) this.map.setLayoutProperty('topo', 'visibility', on ? 'visible' : 'none');
   }
   setSombra(on) {
     this.st.sombra = on;

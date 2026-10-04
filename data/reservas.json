@@ -1,0 +1,133 @@
+{
+  "conferido_em": "2026-10-04",
+  "fonte": "Aba Reservas da planilha (07/09/2026), atualizada com a situação de 04/10/2026. Custos são estimativas públicas em US$ (listagens, tabelas dos parques e a própria planilha), não valores pagos.",
+  "prioridades": {
+    "urgente": "Urgente",
+    "alta": "Alta",
+    "media": "Média",
+    "baixa": "Baixa",
+    "verificar": "Verificar"
+  },
+  "itens": [
+    {
+      "id": "antelope", "prioridade": "urgente", "item": "Antelope Canyon: tour guiado",
+      "onde": { "texto": "Operadoras navajo autorizadas (Upper ou Lower Antelope)", "url": "https://navajonationparks.org/" },
+      "prazo": "2026-10-05", "prazo_txt": "agora", "custo_est": 190, "dia": 5,
+      "notas": "Só se entra com guia; esgota semanas antes. A lista oficial de operadoras está no site dos parques navajos. O preço inclui a taxa navajo e o passe dos parques nacionais não vale. Confira se o horário está na hora navajo (1 h à frente do Arizona em outubro) e chegue 30 min antes. Estimativa para 2 pessoas."
+    },
+    {
+      "id": "hotel-lax", "prioridade": "urgente", "item": "Hotel perto do LAX (31/10)",
+      "onde": { "texto": "Booking ou Expedia", "url": "https://www.booking.com/" },
+      "prazo": "2026-10-05", "prazo_txt": "agora", "custo_est": 160, "dia": 13,
+      "notas": "Sábado de Halloween. Escolha um com shuttle grátis para o aeroporto: o voo é às 10h10 de domingo e o horário de verão acaba nessa madrugada."
+    },
+    {
+      "id": "veiculo", "prioridade": "alta", "item": "Motorhome (Noovo Lite ou similar)",
+      "onde": { "texto": "Outdoorsy / OffGrid Campervans", "url": "https://www.outdoorsy.com/" },
+      "prazo": "2026-09-30", "custo_est": 3430, "dia": 1,
+      "notas": "Estimativa da planilha (12 diárias de listagem pública). Confirme: milhagem (~2.130 milhas), aquecedor, altura e largura, estrada de terra, horário de devolução no sábado (até 12h) e o que vem no kit."
+    },
+    {
+      "id": "passe", "prioridade": "alta", "item": "Passe anual de não residente",
+      "onde": { "texto": "Recreation.gov (digital) ou na primeira entrada", "url": "https://www.recreation.gov/pass" },
+      "prazo": "2026-10-18", "prazo_txt": "antes de embarcar", "custo_est": 250, "dia": 1,
+      "notas": "Substitui o America the Beautiful de US$ 80 da planilha. Cobre a entrada do veículo e a taxa de US$ 100 por estrangeiro (titular e acompanhantes) em Grand Canyon, Zion e Yosemite; sem ele, só essa taxa daria US$ 600 para o casal. Leve o passaporte do titular."
+    },
+    {
+      "id": "watchman", "prioridade": "alta", "item": "Watchman Campground (Zion), 2 noites",
+      "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Watchman%20Campground" },
+      "prazo": "2026-09-30", "custo_est": 60, "dia": 6, "noites": 2,
+      "notas": "Noites de 24 e 25/10. Costuma lotar até o fim de novembro. Fica na entrada sul: dá para chegar mesmo com a SR-9 (túnel) fechada. Alternativa: Zion Canyon Campground, em Springdale."
+    },
+    {
+      "id": "upper-pines", "prioridade": "alta", "item": "Upper Pines (Yosemite), 2 noites",
+      "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Upper%20Pines" },
+      "prazo": "2026-09-30", "custo_est": 72, "dia": 9, "noites": 2,
+      "notas": "Noites de 27 e 28/10. Reserva obrigatória; abre 5 meses antes e esgota. Se não conseguiu, procure desistências todo dia (também North Pines e Wawona)."
+    },
+    {
+      "id": "seguro", "prioridade": "alta", "item": "Seguro viagem",
+      "onde": { "texto": "Seguradora ou cartão de crédito" },
+      "prazo": "2026-10-14", "custo_est": 150,
+      "notas": "Cobertura médica alta para os EUA. Confira se cobre trilha e direção. Estimativa da planilha para 2 pessoas."
+    },
+    {
+      "id": "pid", "prioridade": "alta", "item": "Permissão Internacional para Dirigir (PID)",
+      "onde": { "texto": "Detran do seu estado" },
+      "prazo": "2026-10-09", "custo_est": null,
+      "notas": "Nem toda locadora exige, mas evita discussão no balcão. A taxa é do Detran, em reais. Peça com folga para a emissão."
+    },
+    {
+      "id": "mather", "prioridade": "media", "item": "Mather Campground (Grand Canyon), 2 noites",
+      "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Mather%20Campground" },
+      "prazo": "2026-09-30", "custo_est": 50, "dia": 3, "noites": 2,
+      "notas": "Noites de 21 e 22/10. Só camping seco: sem torneiras, duchas nem lavanderia, com banheiros químicos (NPS, 30/09); a água só deve voltar depois de 16/11. O Trailer Village está fechado. Chegue com o galão cheio e os tanques vazios (encha e esvazie em Williams). Se precisar de ligação, RV park em Tusayan ou Williams."
+    },
+    {
+      "id": "jumbo-rocks", "prioridade": "media", "item": "Jumbo Rocks (Joshua Tree)",
+      "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Jumbo%20Rocks" },
+      "prazo": "2026-09-30", "custo_est": 25, "dia": 1,
+      "notas": "Noite de 19/10, chegando no escuro: reserve para não procurar vaga. Sem água nem ligação (a água mais perto fica no Oasis Visitor Center). Alternativas: Cottonwood ou Black Rock."
+    },
+    {
+      "id": "furnace-creek", "prioridade": "media", "item": "Furnace Creek (Death Valley)",
+      "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Furnace%20Creek%20Campground" },
+      "prazo": "2026-09-30", "custo_est": 36, "dia": 8,
+      "notas": "Noite de 26/10. É o único do parque que aceita reserva em outubro, alta temporada lá. Aberto em 02/10."
+    },
+    {
+      "id": "half-moon-bay", "prioridade": "media", "item": "Half Moon Bay State Beach",
+      "onde": { "texto": "reservecalifornia.com", "url": "https://www.reservecalifornia.com/" },
+      "prazo": "2026-09-30", "custo_est": 45, "dia": 11,
+      "notas": "Noite de 29/10, 45 min ao sul de SF (não durma com o veículo na cidade). Situação do camping não confirmada em 04/10: o site do California State Parks estava fora do ar. Alternativa: Pillar Point RV Park."
+    },
+    {
+      "id": "morro-bay", "prioridade": "media", "item": "Morro Bay State Park",
+      "onde": { "texto": "reservecalifornia.com", "url": "https://www.reservecalifornia.com/" },
+      "prazo": "2026-10-10", "custo_est": 60, "dia": 12, "plano": "A",
+      "notas": "Noite de 30/10. A Hwy 1 em Big Sur reabriu em 14/09, então dá para reservar. Situação do camping não confirmada em 04/10. Alternativa: El Chorro Regional Park."
+    },
+    {
+      "id": "esim", "prioridade": "media", "item": "eSIM ou chip de dados dos EUA",
+      "onde": { "texto": "Operadora de eSIM de viagem ou chip pré-pago americano" },
+      "prazo": "2026-10-16", "custo_est": 60,
+      "notas": "Instale antes de viajar e ative ao pousar. Estimativa para 2 pessoas, 13 dias."
+    },
+    {
+      "id": "blake-ranch", "prioridade": "baixa", "item": "Blake Ranch RV Park (Kingman)",
+      "onde": { "texto": "Direto com o RV park", "url": "https://www.google.com/maps/search/?api=1&query=Blake+Ranch+RV+Park+Kingman+AZ" },
+      "prazo": "2026-10-15", "custo_est": 45, "dia": 2,
+      "notas": "Noite de 20/10. Cidade de passagem, quase sempre tem vaga. Ligação completa e lavanderia. Alternativa: Zuni Village RV."
+    },
+    {
+      "id": "page", "prioridade": "baixa", "item": "Page Lake Powell Campground",
+      "onde": { "texto": "Direto com o camping", "url": "https://www.google.com/maps/search/?api=1&query=Page+Lake+Powell+Campground" },
+      "prazo": "2026-10-15", "custo_est": 60, "dia": 5,
+      "notas": "Noite de 23/10. Ligação completa: bom para reabastecer água depois do Grand Canyon. Alternativa: Wahweap RV & Campground."
+    },
+    {
+      "id": "visto", "prioridade": "verificar", "item": "Visto americano válido",
+      "onde": { "texto": "Já deve ter" },
+      "prazo": "2026-10-09", "custo_est": 0,
+      "notas": "Brasileiro precisa de visto B1/B2 (não há isenção). Confirme que vale na data da entrada; se estiver num passaporte vencido, leve os dois."
+    },
+    {
+      "id": "pedagio", "prioridade": "verificar", "item": "Pedágios da Baía de San Francisco",
+      "onde": { "texto": "Locadora ou Bay Area FasTrak (pagamento avulso)", "url": "https://www.bayareafastrak.org/" },
+      "prazo": "2026-10-19", "prazo_txt": "perguntar na retirada", "custo_est": 20, "dia": 11,
+      "notas": "Bay Bridge entrando em SF (US$ 8,50 em 2026) e Golden Gate no sentido sul, se cruzar: só pela placa, sem cabine. Se a locadora já cobra, não pague por fora; se não, pague avulso até 48 h depois de cruzar."
+    },
+    {
+      "id": "oakhurst", "prioridade": "verificar", "item": "Pernoite em Oakhurst (plano B do dia 9)",
+      "onde": { "texto": "RV park em Oakhurst", "url": "https://www.google.com/maps/search/?api=1&query=RV+park+Oakhurst+CA" },
+      "prazo": "2026-10-26", "prazo_txt": "na véspera, se a Tioga fechar", "custo_est": 70, "dia": 9, "plano": "B",
+      "notas": "Só se a Tioga Road fechar: pelo sul são ~13 h de motorhome, e dormir no caminho muda a saída do dia 10. Confira a Tioga no 209-372-0200."
+    },
+    {
+      "id": "santa-barbara", "prioridade": "verificar", "item": "RV park em Santa Bárbara (plano B do dia 12)",
+      "onde": { "texto": "RV park a escolher", "url": "https://www.google.com/maps/search/?api=1&query=RV+park+Santa+Barbara+CA" },
+      "prazo": "2026-10-29", "prazo_txt": "na véspera, se a Hwy 1 fechar", "custo_est": 65, "dia": 12, "plano": "B",
+      "notas": "Só se a Hwy 1 fechar de novo (chuva forte pode soltar lama da área queimada). Aí o Morro Bay State Park deixa de ser preciso."
+    }
+  ]
+}

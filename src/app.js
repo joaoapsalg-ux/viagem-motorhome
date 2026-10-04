@@ -27,11 +27,12 @@ async function lerJSON(u) {
   if (!r.ok) throw new Error(`${u}: HTTP ${r.status}`);
   return r.json();
 }
-let roteiro, rotas, pontos, alertas, opcionais;
+let roteiro, rotas, pontos, alertas, opcionais, fotos;
 try {
   progresso(0.1, 'Lendo o roteiro…');
-  [roteiro, rotas, pontos, alertas, opcionais] = await Promise.all([...['data/roteiro.json', 'data/rotas.geojson', 'data/pontos.json', 'data/alertas.json'].map(lerJSON),
-    lerJSON('data/opcionais.json').catch(() => ({ itens: [] }))]);   // sem os opcionais, o resto funciona
+  [roteiro, rotas, pontos, alertas, opcionais, fotos] = await Promise.all([...['data/roteiro.json', 'data/rotas.geojson', 'data/pontos.json', 'data/alertas.json'].map(lerJSON),
+    lerJSON('data/opcionais.json').catch(() => ({ itens: [] })),   // sem os opcionais, o resto funciona
+    lerJSON('data/fotos.json').catch(() => ({ itens: {} }))]);      // fotos e descrições: 'p:<ponto>' e 'o:<opcional>'
 } catch (e) {
   falhou(`Não deu para ler os dados da viagem (${e.message}). Confira a conexão e recarregue.`);
   throw e;
@@ -61,6 +62,24 @@ let filtroOp = 'todos';   // filtro dos opcionais do dia: 'todos', 'quero' ou um
 const quero = new Set((() => { try { return JSON.parse(store.get('quero') ?? '[]'); } catch { return []; } })());
 function setQuero(id, on) { if (on) quero.add(id); else quero.delete(id); store.set('quero', JSON.stringify([...quero])); }
 
+// ---------- módulos (src/mod/*.js; contrato em src/mod/LEIAME.md) ----------
+/** registro do que os módulos acrescentam: blocos na ficha do dia, etiquetas na lista dos dias e ganchos */
+const ext = {
+  blocos: [], tagsDia: [], botoesDia: [], ganchos: {},
+  registrar(e) {
+    if (e.blocoDia) [].concat(e.blocoDia).forEach((b) => this.blocos.push(b));
+    if (e.tagDia) this.tagsDia.push(e.tagDia);
+    if (e.botaoDia) this.botoesDia.push(e.botaoDia);
+    for (const k of ['aoRenderDia', 'aoRenderViagem', 'aoMostrarPainel', 'aoPosicao', 'aoSinal', 'aoMapa']) if (e[k]) (this.ganchos[k] ??= []).push(e[k]);
+  },
+  /** html dos blocos de um lugar da ficha: 'depois-paradas', 'depois-tempo', 'depois-opcionais' ou 'fim' */
+  html(lugar, d) {
+    return this.blocos.filter((b) => b.lugar === lugar).map((b) => { try { return b.html(d) ?? ''; } catch (err) { console.warn('módulo (bloco):', err); return ''; } }).join('');
+  },
+  botoes(d) { return this.botoesDia.map((fn) => { try { return fn(d) ?? ''; } catch (err) { console.warn('módulo (botão):', err); return ''; } }).join(''); },
+  tags(d) { return this.tagsDia.map((fn) => { try { return fn(d) ?? ''; } catch (err) { console.warn('módulo (etiqueta):', err); return ''; } }).join(''); },
+  chamar(nome, ...args) { for (const fn of this.ganchos[nome] ?? []) { try { fn(...args); } catch (err) { console.warn(`módulo (${nome}):`, err); } } },
+};
 /** o dia usa o plano B? (escolha guardada; senão, o que o roteiro manda) */
 function usaB(n) {
   const d = diaPorN.get(n);
@@ -228,7 +247,7 @@ function marcadores() {
       chave: `s:${it.id}`, lngLat: llPonto(it.id), cls: `mk--stop${it.fora ? ' is-off' : ''}`, style: `--c:${corDia(selDia.n)}`,
       html: `<span class="g">${++i}</span><span class="nm">${esc(nomePonto(it.id))}</span>`,
       titulo: `Parada ${i}: ${nomePonto(it.id)}`, prioridade: 80 - i, zoomNome: 6, essencial: true,
-      aoClicar: () => mapa.voar(llPonto(it.id), 12.5),
+      aoClicar: () => verPonto(it.id),
     }));
   } else if (sel?.tipo === 'opc') {
     const o = opcPorId.get(sel.id), f = rotaPorId.get(o.rota);
@@ -308,6 +327,7 @@ function showPane(name, { sheet = 'half' } = {}) {
   if (changed) paneBody.scrollTop = 0;
   setCollapsed(false);
   if (name === 'sobre') mostrarArmazenamento();
+  ext.chamar('aoMostrarPainel', name);
 }
 $$('.rail-btn[data-pane]').forEach((b) => b.addEventListener('click', () => {
   if (b.dataset.pane === curPane && !collapsed) setCollapsed(true); else showPane(b.dataset.pane);
@@ -438,7 +458,7 @@ function renderViagem() {
     if (al.length) tags.push(`<span class="tag" style="--c:${COR_G[gravMax(al)]}">${al.length} alerta${al.length > 1 ? 's' : ''}</span>`);
     const tempo = P.tipo === 'shuttle' ? 'de shuttle' : `~${fmtH(horasMotorhome(P.horas))}`;
     return `<li><button type="button" class="day${d.n === diaDeHoje ? ' is-today' : ''}" data-dia="${d.n}" style="--c:${corDia(d.n)}">
-      <i>${d.n}</i><b>${esc(A.de)} → ${esc(A.para)}</b><span class="tags">${tags.join('')}</span>
+      <i>${d.n}</i><b>${esc(A.de)} → ${esc(A.para)}</b><span class="tags">${tags.join('')}${ext.tags(d)}</span>
       <small>${fmtData(d.data, d.semana)} · ${fmtKm(P.km)} · ${tempo}</small></button></li>`;
   }).join('');
   const [, mf, df] = roteiro.fim.data.split('-');
@@ -453,6 +473,7 @@ function renderViagem() {
     <ol class="days" aria-label="Dias da viagem">${itens}</ol>
     <div class="trip-end"><i>${ICONE.aviao}</i><b>dom ${df}/${mf} · volta</b><small>${esc(roteiro.fim.texto)}</small></div>
     <p class="cc-note">Distâncias pela estrada (OSRM/OpenStreetMap). Tempo de motorhome = tempo de carro + 25% (estimativa). A planilha tinha ${nf(dias.reduce((s, d) => s + d.km_planilha, 0))} km.</p>`;
+  ext.chamar('aoRenderViagem', $('#trip'));
 }
 $('#trip').addEventListener('click', (e) => {
   const b = e.target.closest('[data-dia]');
@@ -484,6 +505,32 @@ function htmlAlerta(a, { comDias = false } = {}) {
     ${fontes ? `<div class="src">${fontes}</div>` : ''}</li>`;
 }
 
+/** foto e descrição (data/fotos.json): 'p:<ponto>' ou 'o:<opcional>' */
+const ctxFoto = (chave) => fotos.itens?.[chave] ?? null;
+const fotoPonto = (id) => { const f = ctxFoto('p:' + id); return f && (f.foto || f.texto) ? f : null; };
+/** foto do Wikimedia Commons com crédito (carrega só quando aparece; sem sinal, fica o fundo neutro) */
+function htmlFoto(f, cls = '') {
+  return `<figure class="ft ${cls}"><img loading="lazy" decoding="async" src="${esc(f.mini || f.foto)}"${f.mini && f.foto ? ` srcset="${esc(f.mini)} 500w, ${esc(f.foto)} 960w" sizes="(max-width: 700px) 92vw, 380px"` : ''} alt="${esc(f.alt || f.titulo || '')}" onerror="this.closest('figure').classList.add('is-sem')">
+    ${f.credito ? `<figcaption>${f.pagina ? `<a href="${esc(f.pagina)}" target="_blank" rel="noopener">${esc(f.credito)}</a>` : esc(f.credito)}</figcaption>` : ''}</figure>`;
+}
+/** detalhe de uma parada da lista: foto, descrição e botões (fechado até tocar no nome) */
+function htmlPontoMais(id, papel) {
+  const f = fotoPonto(id);
+  if (!f) return '';
+  const p = pontos[id];
+  return `<div class="st-mais" id="st-${id}-${papel}" hidden>${f.foto ? htmlFoto(f) : ''}${f.texto ? `<p>${esc(f.texto)}</p>` : ''}
+    <div class="op-acts"><button type="button" class="btn btn--small" data-ponto-mapa="${id}">${ICONE.enquadrar}No mapa</button>
+      <a class="btn btn--small" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}&travelmode=driving" target="_blank" rel="noopener">${ICONE.navegar}Ir até lá</a></div></div>`;
+}
+/** abre o detalhe de uma parada do dia aberto (vindo do marcador no mapa) */
+function verPonto(id) {
+  const bt = $(`#day .stops [data-ponto="${CSS.escape(id)}"][aria-expanded]`);
+  if (!bt) { mapa?.voar(llPonto(id), 12.5); return; }
+  if (mqPhone.matches) setSheet('half');
+  if (bt.getAttribute('aria-expanded') !== 'true') bt.click();
+  requestAnimationFrame(() => bt.closest('li')?.scrollIntoView({ block: 'center', behavior: reduzMovimento() ? 'auto' : 'smooth' }));
+  if (!mqPhone.matches) mapa?.voar(llPonto(id), 12.5);
+}
 /** um opcional (cartão com "quero fazer", detalhes e botões) */
 function htmlOp(o, { dia } = {}) {
   const t = TIPO_OPC[o.tipo] ?? TIPO_OPC.atracao, q = quero.has(o.id);
@@ -505,7 +552,7 @@ function htmlOp(o, { dia } = {}) {
     ${prio || outroDia || est ? `<div class="op-tags">${prio}${outroDia}${est ? `<span class="tag" style="--c:var(--g-${o.estado === 'fechado' ? 'alta' : 'media'})">${est}</span>` : ''}</div>` : ''}
     <p class="op-res">${esc(o.resumo)}</p>
     ${o.situacao ? `<p class="op-st" data-e="${esc(o.estado)}">${esc(o.situacao)}</p>` : ''}
-    <details class="op-mais"><summary>Detalhes</summary><dl>${det}</dl>
+    <details class="op-mais"><summary>Detalhes</summary>${ctxFoto('o:' + o.id)?.foto ? htmlFoto(ctxFoto('o:' + o.id), 'op-ft') : ''}<dl>${det}</dl>
       <div class="op-acts"><button type="button" class="btn btn--small" data-op-mapa="${esc(o.id)}">${ICONE.enquadrar}No mapa</button>
         <a class="btn btn--small" href="https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lon}&travelmode=driving" target="_blank" rel="noopener">${ICONE.navegar}Ir até lá</a>
         ${o.fonte ? `<a class="btn btn--small" href="${esc(o.fonte)}" target="_blank" rel="noopener">${esc(fonte || 'Fonte')}</a>` : ''}</div>
@@ -589,12 +636,13 @@ function renderDia(n) {
     const leg = it.km != null ? `+${fmtKm(it.km)}<br>${shuttle ? '' : `~${fmtH(horasMotorhome(it.min / 60))}`}` : it.fora && it.papel === 'parada' ? 'fora da rota' : '';
     return `<li class="${papel}${it.fora && it.papel === 'parada' ? ' is-off' : ''}">
       <span class="n" aria-hidden="true">${num}</span>
-      <button type="button" class="go" data-ponto="${it.id}"><b>${esc(nome)}</b><small>${esc(sub)}${it.papel !== 'parada' && nota ? ` · ${esc(nota)}` : ''}</small></button>
-      <span class="leg">${leg}</span></li>`;
+      <button type="button" class="go" data-ponto="${it.id}"${fotoPonto(it.id) ? ` aria-expanded="false" aria-controls="st-${it.id}-${it.papel}"` : ''}><b>${esc(nome)}</b><small>${esc(sub)}${it.papel !== 'parada' && nota ? ` · ${esc(nota)}` : ''}</small></button>
+      <span class="leg">${leg}</span>${htmlPontoMais(it.id, it.papel)}</li>`;
   }).join('');
   const pn = a.pernoite;
   const preco = pn.preco ? `US$ ${pn.preco}/noite` : '';
-  const pernoite = `<div class="stay-card"><i>${pn.tipo === 'Hotel' ? ICONE.cama : ICONE.lua}</i>
+  const fp = fotoPonto(pn.ponto);
+  const pernoite = `<div class="stay-card">${fp?.foto ? htmlFoto(fp, 'stay-ft') : ''}<i>${pn.tipo === 'Hotel' ? ICONE.cama : ICONE.lua}</i>
       <b>${esc(pn.nome)}</b>
       <span class="meta"><span>${esc(pn.tipo)}</span>${preco ? `<span>${preco}</span>` : ''}${pn.reserva ? `<span>reserva: ${esc(pn.reserva)}</span>` : ''}</span>
       <p>${esc(pn.notas ?? '')}${pn.alternativa ? `<br><small>Alternativa: ${esc(pn.alternativa)}</small>` : ''}</p></div>`;
@@ -631,18 +679,23 @@ function renderDia(n) {
     ${aviso}
     <div class="cc-acts">${navegar}
       <button type="button" class="btn btn--small" data-act="enquadrar">${ICONE.enquadrar}No mapa</button>
-      <button type="button" class="btn btn--small" data-act="compartilhar">${ICONE.compartilhar}Compartilhar</button></div>
+      <button type="button" class="btn btn--small" data-act="compartilhar">${ICONE.compartilhar}Compartilhar</button>${ext.botoes(d)}</div>
     ${dicaNav}
     <p class="cc-share" id="cc-share" role="status"></p>
     ${escolha}
     <section class="blk"><h3>Programação</h3><p>${esc(a.programacao)}</p></section>
     <section class="blk"><h3>Paradas <span>${shuttle ? 'de shuttle' : fmtKm(P.km)}</span></h3><ol class="stops" style="--c:${cor}">${lis}</ol></section>
+    ${ext.html('depois-paradas', d)}
     ${htmlTempo(d)}
+    ${ext.html('depois-tempo', d)}
     ${htmlOpsDoDia(d)}
+    ${ext.html('depois-opcionais', d)}
     <section class="blk"><h3>Pernoite</h3>${pernoite}</section>
     <section class="blk"><h3>Para saber</h3><p class="cc-water">${esc(a.notas)}</p></section>
     ${al.length ? `<section class="blk"><h3>Alertas do dia <span>conferido em ${fmtDia(alertas.conferido_em)}</span></h3><ul class="alerts">${al.map((x) => htmlAlerta(x)).join('')}</ul></section>` : ''}
+    ${ext.html('fim', d)}
     <p class="cc-note">${P.obs ? `${esc(P.obs)} ` : ''}Na planilha: ${nf(d.km_planilha)} km, ${fmtH(d.horas_planilha)}.</p>`;
+  ext.chamar('aoRenderDia', n, $('#day'));
 }
 /** estrela "quero fazer" e "No mapa" dos cartões de opcional; devolve true se tratou o clique */
 function cliqueOp(e) {
@@ -664,7 +717,17 @@ function cliqueOp(e) {
   if (act === 'enquadrar' && n) { if (mqPhone.matches) setSheet('peek'); return depoisDaGaveta(() => enquadrarDia(n)); }
   if (act === 'compartilhar' && n) return compartilhar(n);
   if (cliqueOp(e)) return;
+  const pm = e.target.closest('[data-ponto-mapa]');
+  if (pm) {
+    if (mqPhone.matches) setSheet('peek');
+    return depoisDaGaveta(() => mapa?.voar(llPonto(pm.dataset.pontoMapa), 12.5));
+  }
   const go = e.target.closest('[data-ponto]');
+  if (go?.hasAttribute('aria-expanded')) {   // tem foto/descrição: abre e fecha o detalhe
+    const aberto = go.getAttribute('aria-expanded') === 'true', alvo = document.getElementById(go.getAttribute('aria-controls'));
+    go.setAttribute('aria-expanded', String(!aberto)); if (alvo) alvo.hidden = aberto;
+    return;
+  }
   if (go) {
     if (mqPhone.matches) setSheet('peek');
     depoisDaGaveta(() => mapa?.voar(llPonto(go.dataset.ponto), 12.5));
@@ -874,6 +937,8 @@ addEventListener('hashchange', () => {
   const net = $('#net');
   const upd = () => {
     net.hidden = navigator.onLine;
+    mapa?.setSemSinal(!navigator.onLine);
+    ext?.chamar('aoSinal', navigator.onLine);
     // a internet voltou: se o mapa ficou no outro tema por falta de sinal, tenta de novo
     if (navigator.onLine && mapa && mapa.escuroReal !== isDark()) aplicarTema();
   };
@@ -882,7 +947,7 @@ addEventListener('hashchange', () => {
 {
   const btn = $('#locate');
   let watch = null;
-  const parar = () => { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; btn.setAttribute('aria-pressed', 'false'); mapa?.setPosicao(null); };
+  const parar = () => { if (watch != null) navigator.geolocation.clearWatch(watch); watch = null; btn.setAttribute('aria-pressed', 'false'); mapa?.setPosicao(null); ext.chamar('aoPosicao', null); };
   btn.addEventListener('click', () => {
     if (watch != null) return parar();
     if (!navigator.geolocation) return aviso('Este navegador não informa a posição.');
@@ -891,6 +956,7 @@ addEventListener('hashchange', () => {
     watch = navigator.geolocation.watchPosition((p) => {
       const ll = [p.coords.longitude, p.coords.latitude];
       mapa?.setPosicao(ll);
+      ext.chamar('aoPosicao', ll, p.coords);
       if (primeira) { primeira = false; mapa?.voar(ll, 11); }
     }, (err) => {
       aviso(err.code === 1 ? 'Sem permissão para ver a posição. Libere a localização para este site.' : 'Não deu para achar a posição agora.');
@@ -901,6 +967,29 @@ addEventListener('hashchange', () => {
 $('#compass').addEventListener('click', () => mapa?.norte());
 $('#rail-logo').addEventListener('click', () => mostrarViagem());
 
+// ---------- carga dos módulos ----------
+const MODULOS = ['clima', 'preparar', 'gastos', 'estrada', 'agenda'];   // os que ainda estão em construção entram quando ficarem prontos
+/** o que os módulos podem usar do app (ver src/mod/LEIAME.md) */
+const ctx = {
+  dados: { roteiro, rotas, pontos, alertas, opcionais, fotos }, dias, diaPorN, rotaPorId, opPorId,
+  /** foto e descrição de um ponto ('p:mather') ou opcional ('o:<id>'): { titulo, texto, foto, mini, credito, licenca, pagina, alt } */
+  foto: (chave) => fotos.itens?.[chave] ?? null,
+  ativo, rotaAtiva, inicioDe, listaParadas, tempoDoDia, usaB, opsDoDia, posNaRota, llPonto, nomePonto, horasMotorhome,
+  quero: () => new Set(quero), diaAberto: () => (sel?.tipo === 'dia' ? sel.n : null), diaDeHoje, HOJE,
+  abrirDia, mostrarViagem, showPane, setSheet, setCollapsed, aviso, anunciar,
+  /** o painel está recolhido? (no celular: só a barra embaixo) */
+  recolhido: () => collapsed,
+  /** refaz a ficha do dia aberto mantendo a rolagem (para quando um módulo recebe dados novos) */
+  atualizarDia: () => { if (sel?.tipo === 'dia') { const y = paneBody.scrollTop; renderDia(sel.n); paneBody.scrollTop = y; } },
+  atualizarViagem: () => renderViagem(),
+  mapa: () => mapa, celular: () => mqPhone.matches,
+  util: { $, $$, store, nf, fmtKm, fmtH, fmtData, fmtDia, esc, isDark, reduzMovimento, corDia, ICONE, TIPO_OPC, sol, fmtHora, MOTORHOME },
+  registrar: (e) => ext.registrar(e),
+};
+const modulosProntos = Promise.all(MODULOS.map((m) => import(`./mod/${m}.js`)
+  .then((mod) => mod.iniciar?.(ctx))
+  .catch((e) => console.warn(`módulo ${m}:`, e))))
+  .then(() => { renderViagem(); ctx.atualizarDia(); if (mapa) ext.chamar('aoMapa', mapa); });
 // ---------- início ----------
 renderViagem();
 renderAlertas();
@@ -917,8 +1006,9 @@ try {
   progresso(0.6, 'Desenhando os trechos…');
   mapa = await Mapa.criar($('#map'), {
     escuro: isDark(), fundo: $('#f-sat').checked ? 'satelite' : 'mapa', sombra: $('#t-sombra').checked, relevo3D: $('#t-3d').checked,
-    rotas: fcRotas(), limites: caixaViagem(), aoClicarRota,
+    rotas: fcRotas(), limites: caixaViagem(), aoClicarRota, semSinal: !navigator.onLine,
   });
+  ext.chamar('aoMapa', mapa);
   mapa.map.on('rotate', () => { $('#compass-rose').style.transform = `rotate(${-mapa.map.getBearing()}deg)`; });
   syncPadding(false);
   if (mapa.escuroReal !== isDark()) aviso('Sem sinal: o mapa abriu no outro tema (claro/escuro) até a internet voltar.');
@@ -931,7 +1021,9 @@ try {
     ? 'Este aparelho não conseguiu abrir o mapa (precisa de WebGL 2). Tente outro navegador ou atualize o sistema. O roteiro, os alertas e o botão Navegar continuam funcionando.'
     : 'Não deu para abrir o mapa agora (sem sinal e sem o mapa guardado). O roteiro, os alertas e o botão Navegar continuam funcionando; recarregue quando houver internet.'}</p>`;
 }
-window.app = { mapa, abrirDia, mostrarViagem, abrirOpcional, showPane, setSheet, setCollapsed, usaB };
+window.app = { mapa, abrirDia, mostrarViagem, abrirOpcional, showPane, setSheet, setCollapsed, usaB, ext, ctx };
+// os módulos entram antes da primeira ficha (no máximo 4 s de espera; um módulo com erro não trava o app)
+await Promise.race([modulosProntos, new Promise((ok) => setTimeout(ok, 4000))]);
 {
   const m = location.hash.match(/dia=(\d+)/);
   if (m && diaPorN.has(+m[1])) abrirDia(+m[1], { animar: false });
