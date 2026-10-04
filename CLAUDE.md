@@ -88,3 +88,19 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - Responder em português, curto. Quando ele pergunta "como melhorar", oferecer uma lista numerada e deixar ele escolher.
 - Pedir permissão antes de baixar qualquer arquivo (dizer nome, origem e tamanho).
 - Testar antes de entregar e dizer o que não foi testado (ex.: GPU real, celular de verdade).
+
+## Pendências (04/10/2026, sessão interrompida pelo limite de uso)
+
+- O João AUTORIZOU (04/10) estes downloads: perfil de altitude (~50 consultas à API de elevação da Open-Meteo →
+  data/perfis.json), média da época do clima (~12 consultas ao archive-api da Open-Meteo, ERA5 2016–2025 →
+  data/clima.json via tools/build_clima.ps1) e teste do pacote offline (~300 blocos do USGS Topo, só no Chrome de teste).
+- Módulos que faltam construir (src/mod/LEIAME.md tem o contrato; o João pediu "pode fazer tudo" para todos):
+  perfil, diario, pacote (os agentes anteriores recusaram por falta desse contexto), demo (demonstração de cada dia com
+  fotos e informações — workflow parado no meio; ver se src/mod/demo.js existe e está inteiro). Depois de prontos,
+  pôr na lista MODULOS do src/app.js e no CASCO do sw.js.
+- Revisões dos módulos clima, gastos, estrada, agenda e preparar foram interrompidas: revisar/testar antes de publicar
+  de novo (o publicado em 97b98a4 é o retrato de antes da revisão).
+- Opcionais: completos (145, as 5 regiões verificadas; Antelope Canyon como 'vale', opcional por decisão do João).
+- Fotos e descrições dos pontos (data/fotos.json, Wikimedia Commons, chaves 'p:<ponto>' e 'o:<opcional>'): pesquisa
+  parada no meio; refazer (o app já mostra foto/descrição nas paradas, pernoite e opcionais quando houver dados).
+- Agendada para 17/10 9h a nova pesquisa dos alertas (tarefa "viagem-motorhome-alertas").
