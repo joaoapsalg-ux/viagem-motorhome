@@ -64,8 +64,11 @@ src/mod/*.js      módulos (contrato em src/mod/LEIAME.md; lista MODULOS no app.
                   (.ics), perfil (altitude do trecho; data/perfis.json de tools/build_perfil.ps1), diario (notas e
                   fotos no IndexedDB, "Baixar o diário" em .html), pacote (baixa o USGS Topo ao longo da viagem para
                   'mapa-pacote-v1'), demo (demonstração animada de cada dia e "A viagem em 2 minutos")
-data/fotos.json   foto (Wikimedia Commons, hotlink 960/500 px, crédito e licença) e descrição de cada ponto ('p:<id>');
-                  sem foto: locadora, hotel_lax, mt_carmel, new_priest
+data/fotos.json   foto (Wikimedia Commons, hotlink 960/500 px, crédito e licença) e descrição de cada ponto ('p:<id>';
+                  sem foto: locadora, hotel_lax, mt_carmel, new_priest) e foto de 117 dos 145 opcionais ('o:<id>',
+                  texto vazio: o app usa o resumo; sem foto ficam quase só os "práticos"). No cartão do opcional a
+                  miniatura entra no lugar do ícone do tipo (que aparece se a foto não carregar); a grande e o crédito
+                  ficam em "Detalhes"
 src/util.js       store (localStorage 'viagem-motorhome.'), formatos pt-BR, cores dos dias, ícones SVG
 sw.js             service worker: casco do app num cache por versão (instalação tudo ou nada; __VERSAO__ trocado no
                   deploy) e MapLibre + fontes do Google num cache fixo (libs-v1); em produção, guardado primeiro
@@ -118,7 +121,7 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - Ganchos sugeridos pelos módulos (não obrigatórios): `ctx.enquadrarDia(n)`, `ctx.margemMapa()` (estrada e demo usam
   `ctx.mapa().setPadding`), `ctx.ligarGPS()`/`gpsLigado()` (estrada clica no #locate), previsão do clima no ctx (a demo
   mostra só a normal), aviso aos módulos depois do "Juntar". O diário não vai no "Levar meus dados" (só no .html).
-- Fotos dos opcionais ('o:<id>') ainda não pesquisadas (só a do Antelope, 'o:page_antelope_canyon'); as dos 4
-  pontos sem foto também não. 'p:lax' tem foto, mas nenhum lugar do app a mostra (o fim da viagem usa locadora/hotel_lax).
+- Fotos dos 4 pontos sem foto ainda não pesquisadas. 'p:lax' tem foto, mas nenhum lugar do app a mostra (o fim da
+  viagem usa locadora/hotel_lax).
 - parks.ca.gov recusa conexão do Brasil (links oficiais dos opcionais da costa; nos EUA devem abrir).
 - Agendada para 17/10 9h a nova pesquisa dos alertas (tarefa "viagem-motorhome-alertas").

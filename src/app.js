@@ -570,16 +570,21 @@ function htmlOp(o, { dia } = {}) {
   const prio = o.prioridade === 'imperdivel' ? '<span class="tag tag--today">Imperdível</span>' : '';
   const est = o.estado === 'fechado' ? 'fechado' : o.estado === 'restricao' ? 'restrição' : o.estado === 'nao_confirmado' ? 'sem confirmação' : '';
   let fonte = ''; try { fonte = o.fonte ? new URL(o.fonte).hostname.replace(/^www\./, '') : ''; } catch { /* sem link */ }
+  // com foto, a miniatura no lugar do ícone do tipo (que fica por baixo: aparece se a foto não carregar, ex. sem sinal)
+  const fo = ctxFoto('o:' + o.id), mini = fo?.mini || fo?.foto;
+  const ic = mini
+    ? `<span class="op-ic op-ic--ft" aria-hidden="true">${t.icone}<img loading="lazy" decoding="async" src="${esc(mini)}" alt="" title="${esc(fo.credito || '')}" onerror="this.remove()"></span>`
+    : `<i class="op-ic" aria-hidden="true">${t.icone}</i>`;
   return `<li class="op${q ? ' is-quero' : ''}${o.estado === 'fechado' ? ' is-off' : ''}" id="op-${esc(o.id)}" style="--t:${t.cor}">
     <div class="op-top">
-      <i class="op-ic" aria-hidden="true">${t.icone}</i>
+      ${ic}
       <div class="op-tt"><b>${esc(o.nome)}</b><small>${esc(meta)}</small></div>
       <button type="button" class="op-q" data-quero="${esc(o.id)}" aria-pressed="${q}" aria-label="Quero fazer: ${esc(o.nome)}" title="Quero fazer">${ICONE.estrela}</button>
     </div>
     ${prio || outroDia || est ? `<div class="op-tags">${prio}${outroDia}${est ? `<span class="tag" style="--c:var(--g-${o.estado === 'fechado' ? 'alta' : 'media'})">${est}</span>` : ''}</div>` : ''}
     <p class="op-res">${esc(o.resumo)}</p>
     ${o.situacao ? `<p class="op-st" data-e="${esc(o.estado)}">${esc(o.situacao)}</p>` : ''}
-    <details class="op-mais"><summary>Detalhes</summary>${ctxFoto('o:' + o.id)?.foto ? htmlFoto(ctxFoto('o:' + o.id), 'op-ft') : ''}<dl>${det}</dl>
+    <details class="op-mais"><summary>Detalhes</summary>${fo?.foto ? htmlFoto(fo, 'op-ft') : ''}<dl>${det}</dl>
       <div class="op-acts"><button type="button" class="btn btn--small" data-op-mapa="${esc(o.id)}">${ICONE.enquadrar}No mapa</button>
         <a class="btn btn--small" href="https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lon}&travelmode=driving" target="_blank" rel="noopener">${ICONE.navegar}Ir até lá</a>
         ${o.fonte ? `<a class="btn btn--small" href="${esc(o.fonte)}" target="_blank" rel="noopener">${esc(fonte || 'Fonte')}</a>` : ''}</div>
