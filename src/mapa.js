@@ -2,7 +2,7 @@
 // marcadores (pernoites, número dos dias, paradas do dia escolhido). Quem decide o que mostrar é o app.js; aqui só
 // se desenha.
 import * as mlMod from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.11.2/dist/maplibre-gl.mjs';
-import { registrarProtocolo, buscar } from './tilecache.js';
+import { registrarProtocolo, buscar, CACHE_BLOCOS, rede } from './tilecache.js';
 import { reduzMovimento } from './util.js';
 
 const ml = mlMod.Map ? mlMod : mlMod.default;
@@ -94,6 +94,7 @@ export class Mapa {
     this.base = new Map();   // estilos da OpenFreeMap já baixados
     this.pad = { top: 0, right: 0, bottom: 0, left: 0 };
     this.geracao = 0;
+    this.pend = null;   // tema/fundo pedidos e ainda não aplicados (o estilo está sendo baixado)
     this.genTopo = 0;
   }
 
@@ -107,12 +108,17 @@ export class Mapa {
    * Sem sinal e sem cópia guardada do tema pedido, usa o do outro tema; devolve { estilo, escuro } (o tema que saiu).
    */
   async #estilo(st = this.st) {
-    let nome = st.escuro ? 'dark' : 'liberty', s;
+    const sat = st.fundo === 'satelite';
+    // sobre o satélite, o estilo claro nos dois temas: o escuro tem nomes cinza e estradas pretas, que somem na foto
+    const pedido = st.escuro && !sat ? 'dark' : 'liberty';
+    let nome = pedido, s;
     try { s = await this.#estiloBase(nome); } catch (e) {
-      nome = st.escuro ? 'liberty' : 'dark';
+      nome = pedido === 'dark' ? 'liberty' : 'dark';
       s = await this.#estiloBase(nome);   // se este também falhar, o erro sobe
     }
-    const escuro = nome === 'dark';
+    // o tema que saiu: o pedido, ou o outro se faltou a cópia (sem sinal)
+    const escuro = nome === pedido ? !!st.escuro : !st.escuro;
+    const baseEscura = nome === 'dark';
     delete s.sources.ne2_shaded;   // relevo antigo de 340 KB por bloco; o hillshade substitui
     s.layers = s.layers.filter((l) => l.source !== 'ne2_shaded');
     s.sources.openmaptiles = { type: 'vector', tiles: [tc(`${OFM}/planet/latest/{z}/{x}/{y}.pbf`)], minzoom: 0, maxzoom: 14, attribution: ATRIB_OFM };
@@ -123,19 +129,19 @@ export class Mapa {
     s.sources.satelite = { ...SAT };
     s.sources.topo = { ...TOPO };
     s.sources.rotas = { type: 'geojson', data: this.rotas };
-    const sat = st.fundo === 'satelite';
     // satélite e sombra do relevo: por cima do chão (terra, água) e por baixo das estradas
     let i = s.layers.findIndex((l) => /^(aeroway|tunnel_|road_|highway_|railway|bridge_|building)/.test(l.id));
     if (i < 0) i = s.layers.length;
     s.layers.splice(i, 0,
       { id: 'satelite', type: 'raster', source: 'satelite', layout: { visibility: sat ? 'visible' : 'none' }, paint: { 'raster-fade-duration': 150 } },
-      { id: 'sombra', type: 'hillshade', source: 'dem-relevo', layout: { visibility: st.sombra && !sat ? 'visible' : 'none' }, paint: hillshade(escuro) });
-    // topográfico do USGS logo acima do fundo: sem sinal, aparece onde o mapa vetorial não foi guardado
-    s.layers.splice(1, 0, { id: 'topo', type: 'raster', source: 'topo', layout: { visibility: st.semSinal ? 'visible' : 'none' }, paint: { 'raster-fade-duration': 0, 'raster-opacity': escuro ? 0.75 : 1 } });
+      { id: 'sombra', type: 'hillshade', source: 'dem-relevo', layout: { visibility: st.sombra && !sat ? 'visible' : 'none' }, paint: hillshade(baseEscura) });
+    // topográfico do USGS logo acima do fundo: sem sinal, aparece onde o mapa vetorial não foi guardado. Nasce
+    // escondido; o #conferirTopo decide depois de abrir (senão pede blocos à toa em toda abertura sem sinal)
+    s.layers.splice(1, 0, { id: 'topo', type: 'raster', source: 'topo', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0, 'raster-opacity': baseEscura ? 0.75 : 1 } });
     // linhas da viagem: por cima das estradas, por baixo dos nomes das cidades
     let j = s.layers.findIndex((l) => /^(label_|place_)/.test(l.id));
     if (j < 0) j = s.layers.length;
-    s.layers.splice(j, 0, ...this.#camadasViagem(escuro, st.fundo));
+    s.layers.splice(j, 0, ...this.#camadasViagem(baseEscura, st.fundo));
     if (st.relevo3D) s.terrain = { source: 'dem-terreno', exaggeration: EXAGERO };
     s.sky = ceu(escuro);
     return { estilo: s, escuro };
@@ -205,9 +211,18 @@ export class Mapa {
     // créditos começam recolhidos (o botão ⓘ abre)
     this.el.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
     // sem sinal, cada pedaço de mapa não guardado dá erro (esperado): só registra os outros
-    this.map.on('error', (ev) => { if (navigator.onLine && ev?.error?.status !== 404) console.warn('mapa:', ev?.error?.message ?? ev); });
-    // sem sinal (ou com a opção do pacote), o topográfico entra só onde falta o mapa normal
-    this.map.on('idle', () => { if (this.st.semSinal) this.#conferirTopo(); });
+    this.map.on('error', (ev) => { if (navigator.onLine && !rede.semInternet && ev?.error?.status !== 404) console.warn('mapa:', ev?.error?.message ?? ev); });
+    // sem sinal (ou com a opção do pacote), o topográfico entra só onde falta o mapa normal. Confere ao parar, ao
+    // trocar o estilo e a cada erro de bloco: sem sinal, depois de um erro o MapLibre pode não desenhar outro quadro, e
+    // aí o 'idle' sozinho não chega
+    // espera 300 ms de calma, mas confere pelo menos 1×/s com a câmera sempre andando (demonstração)
+    let espera = 0, ultima = 0;
+    const agendar = () => {
+      if (!this.st.semSinal) return;
+      clearTimeout(espera);
+      espera = setTimeout(() => { ultima = performance.now(); this.#conferirTopo(); }, Math.min(300, Math.max(0, 1000 - (performance.now() - ultima))));
+    };
+    for (const ev of ['idle', 'moveend', 'style.load', 'error']) this.map.on(ev, agendar);
     if (this.st.semSinal) this.#conferirTopo();
     // toque/clique nas linhas
     this.map.on('click', 'r-toque', (e) => {
@@ -233,7 +248,7 @@ export class Mapa {
     // com sinal, guarda também o estilo do outro tema (um arquivo pequeno), para trocar de tema sem sinal depois
     // (e as letras básicas dos rótulos dos dois estilos, ~80 KB cada)
     setTimeout(() => {
-      this.#estiloBase(this.escuroReal ? 'liberty' : 'dark').catch(() => {});
+      for (const nome of ['liberty', 'dark']) if (!this.base.has(nome)) this.#estiloBase(nome).catch(() => {});
       for (const fonte of ['Noto Sans Regular', 'Noto Sans Bold', 'Noto Sans Italic']) buscar(`${OFM}/fonts/${encodeURIComponent(fonte)}/0-255.pbf`).catch(() => {});
     }, 8000);
   }
@@ -279,6 +294,9 @@ export class Mapa {
       m.marker.setOffset(it.offset ?? [-13, 0]);
       medir.push(m);
     };
+    // os mais importantes por cima quando se encostam (ex.: pernoite escolhido × parada ao lado); os fixos (onde estou,
+    // cursor do perfil) por cima de todos. Nunca negativo: ficaria por baixo do próprio mapa
+    const camada = (m) => { m.marker.getElement().style.zIndex = String(m.it.fixo ? 1000 : Math.max(0, Math.round(m.it.prioridade ?? 0))); };
     const novos = itens.map((it) => {
       let m = it.chave != null ? antigos.get(it.chave) : null;
       if (m) {
@@ -288,6 +306,7 @@ export class Mapa {
         m.marker.setLngLat(it.lngLat);
         if (mudou) aplicar(m);
         else if (it.titulo) { m.b.title = it.titulo; m.b.setAttribute('aria-label', it.titulo); }
+        camada(m);
         return m;
       }
       const caixa = document.createElement('div');   // o MapLibre posiciona a caixa; a pílula fica dentro
@@ -297,6 +316,7 @@ export class Mapa {
       m = { b, it, marker: new ml.Marker({ element: caixa, anchor: it.anchor ?? 'left', offset: it.offset ?? [-13, 0] }).setLngLat(it.lngLat).addTo(this.map) };
       b.addEventListener('click', (ev) => { ev.stopPropagation(); m.it.aoClicar?.(); });
       aplicar(m);
+      camada(m);
       return m;
     });
     for (const m of antigos.values()) m.marker.remove();
@@ -401,21 +421,29 @@ export class Mapa {
   /** troca tema/fundo. Devolve 'ok', 'outro-tema' (sem sinal: ficou o estilo do outro tema) ou 'falhou' (nada muda) */
   async #trocarEstilo(mudanca) {
     const g = ++this.geracao;
-    try { await this.#estilo({ ...this.st, ...mudanca }); } catch { return g === this.geracao ? 'falhou' : 'ok'; }
-    if (g !== this.geracao) return 'ok';   // um pedido mais novo assume
+    // as mudanças ainda não aplicadas se somam: tema e fundo tocados em seguida (o pedido mais novo leva os dois)
+    this.pend = { ...this.pend, ...mudanca };
+    try { await this.#estilo({ ...this.st, ...this.pend }); } catch {
+      if (g !== this.geracao) return 'ok';
+      this.pend = null;
+      return 'falhou';
+    }
+    if (g !== this.geracao) return 'ok';   // um pedido mais novo assume (e leva esta mudança junto)
     // monta de novo com o estado de agora (sombra/3D podem ter mudado durante a espera; o estilo base já está guardado)
-    Object.assign(this.st, mudanca);
+    Object.assign(this.st, this.pend);
+    this.pend = null;
     const { estilo, escuro } = await this.#estilo();
     this.escuroReal = escuro;
     this.map.setStyle(estilo);
     return escuro === !!this.st.escuro ? 'ok' : 'outro-tema';
   }
   async setTema(escuro) {
-    if (escuro === this.st.escuro && escuro === this.escuroReal) return 'ok';
+    if (this.pend && 'escuro' in this.pend) { if (this.pend.escuro === escuro) return 'ok'; }
+    else if (escuro === this.st.escuro && escuro === this.escuroReal) return 'ok';
     return this.#trocarEstilo({ escuro });
   }
   async setFundo(fundo) {
-    if (fundo === this.st.fundo) return 'ok';
+    if ((this.pend && 'fundo' in this.pend ? this.pend.fundo : this.st.fundo) === fundo) return 'ok';
     return this.#trocarEstilo({ fundo });   // o contorno das linhas muda (branco sobre o satélite)
   }
   /** sem sinal: mostra o topográfico do USGS por baixo (onde o mapa vetorial não foi guardado) */
@@ -425,32 +453,42 @@ export class Mapa {
   }
   /**
    * O topográfico só aparece se falta o mapa normal em algum pedaço da vista: onde os dois existem, os nomes das
-   * cidades saem dobrados. Confere no cache os blocos sob uma grade de pontos da tela (com a câmera inclinada, só a
-   * parte de baixo, que é a de perto: longe o MapLibre usa blocos de outro zoom).
+   * cidades saem dobrados. Confere no cache os blocos sob uma grade de pontos da tela. Um ponto tem mapa se o bloco
+   * dele estiver guardado no zoom da vista ou no de cima (que o MapLibre amplia); com a câmera inclinada ou o relevo
+   * 3D, também em até dois abaixo (perto ele usa zoom maior). Inclinada, só a parte de baixo da tela: no horizonte os
+   * blocos são de zoom bem menor.
    */
   async #conferirTopo() {
     const g = ++this.genTopo;
     let ver = !!this.st.semSinal;
     if (ver && typeof caches !== 'undefined') {
-      const z = limita(Math.floor(this.map.getZoom()), 0, 14), n = 2 ** z;
-      const { width: w, height: h } = this.map.getCanvas().getBoundingClientRect();
-      const topo = this.map.getPitch() > 30 ? h * 0.4 : 0;
-      const blocos = new Set();
-      for (let i = 0; i < 6; i++) for (let k = 0; k < 5; k++) {
-        const { lng, lat } = this.map.unproject([w * (i + 0.5) / 6, topo + (h - topo) * (k + 0.5) / 5]);
-        const r = limita(lat, -85, 85) * Math.PI / 180;
-        const x = limita(Math.floor((lng + 180) / 360 * n), 0, n - 1);
-        const y = limita(Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n), 0, n - 1);
-        blocos.add(`${z}/${x}/${y}`);
-      }
-      ver = false;
-      for (const b of blocos) {
-        let hit = null;
-        try { hit = await caches.match(`${OFM}/planet/latest/${b}.pbf`, { ignoreVary: true }); } catch { /* sem Cache API */ }
-        if (!hit) { ver = true; break; }
-      }
+      try {
+        const c = await caches.open(CACHE_BLOCOS);
+        const z0 = Math.floor(this.map.getZoom());
+        const { width: w, height: h } = this.map.getCanvas().getBoundingClientRect();
+        const inclinada = this.map.getPitch() > 20 || !!this.map.getTerrain?.();
+        const cima = this.map.getPitch() > 20 ? h * 0.4 : 0;
+        // reta, o MapLibre usa o zoom da vista ou o de cima ampliado (nunca filhos guardados que não estão na memória)
+        const dzs = inclinada ? [0, -1, 1, 2] : [0, -1];
+        const pts = [];
+        for (let i = 0; i < 6; i++) for (let k = 0; k < 5; k++) pts.push(this.map.unproject([w * (i + 0.5) / 6, cima + (h - cima) * (k + 0.5) / 5]));
+        const temMapa = async ({ lng, lat }) => {
+          const r = limita(lat, -85, 85) * Math.PI / 180;
+          for (const dz of dzs) {
+            const z = limita(z0 + dz, 0, 14), n = 2 ** z;
+            const x = limita(Math.floor((lng + 180) / 360 * n), 0, n - 1);
+            const y = limita(Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n), 0, n - 1);
+            if (await c.match(`${OFM}/planet/latest/${z}/${x}/${y}.pbf`, { ignoreVary: true })) return true;
+          }
+          return false;
+        };
+        ver = (await Promise.all(pts.map(temMapa))).includes(false);
+      } catch { /* sem Cache API: fica o topográfico */ }
     }
-    if (g === this.genTopo && this.map.getLayer('topo')) this.map.setLayoutProperty('topo', 'visibility', ver ? 'visible' : 'none');
+    if (g !== this.genTopo || !this.map.getLayer('topo')) return;
+    const v = ver ? 'visible' : 'none';
+    // só quando muda: o setLayoutProperty sempre pede um quadro novo, que gera outro 'idle' (laço sem fim)
+    if ((this.map.getLayoutProperty('topo', 'visibility') ?? 'visible') !== v) this.map.setLayoutProperty('topo', 'visibility', v);
   }
   setSombra(on) {
     this.st.sombra = on;

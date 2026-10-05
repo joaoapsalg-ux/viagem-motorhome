@@ -48,7 +48,11 @@ export function iniciar(ctx) {          // pode ser async, mas não segure a abe
 - Ações: `abrirDia(n)`, `mostrarViagem()`, `showPane(nome, { sheet })`, `setSheet('peek'|'half'|'full')`,
   `setCollapsed(true|false)` (recolhe/abre o painel; no celular fica só a barra), `recolhido()`, `aviso(texto)`
   (balão por 5 s, lido por leitor de tela), `anunciar(texto)` (só leitor de tela), `atualizarDia()` (refaz a ficha
-  aberta mantendo a rolagem), `atualizarViagem()`, `mapa()` (pode ser null), `celular()` (tela ≤ 700 px).
+  aberta mantendo a rolagem), `atualizarViagem()`, `mapa()` (pode ser null), `celular()` (tela ≤ 700 px),
+  `online()` (há internet de verdade: `navigator.onLine` e o mapa não está falhando seguido, como num Wi-Fi sem
+  internet — use no lugar de `navigator.onLine`; o gancho `aoSinal` recebe o mesmo valor).
+- Margem do mapa: `ctx.mapa().setPadding({ top, bottom, … })` (o app refaz a dele ao mexer no painel; quem muda a
+  margem deve conferir e reaplicar a sua).
 - Utilidades (`ctx.util`): `$`, `$$`, `store` (localStorage com prefixo `viagem-motorhome.`; use chaves com o nome do
   módulo, ex. `gastos.lista`), `nf`, `fmtKm`, `fmtH`, `fmtData`, `fmtDia`, `esc`, `isDark`, `reduzMovimento`,
   `corDia(n)`, `ICONE`, `TIPO_OPC`, `sol(lat, lon, iso, utc)`, `fmtHora`, `MOTORHOME`.

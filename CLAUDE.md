@@ -3,8 +3,9 @@
 "Super app" da viagem de motorhome de um casal pela Costa Oeste dos EUA, de 19/10 a 01/11/2026 (13 dias, ~3.600 km):
 LAX → Joshua Tree → Kingman → Grand Canyon (2) → Page → Zion (2) → Death Valley → Yosemite (2) → Half Moon Bay →
 Morro Bay → LAX. Dono: João Salgado. Toda a interface e a conversa são em **português do Brasil**.
-Etapa 1 (04/10/2026): mapa interativo com o trecho de cada dia. Próxima ideia do João: mapear os **opcionais de cada dia**
-(passeios, trilhas, mirantes que dá para fazer em cada parada).
+Feito em 04/10/2026: mapa interativo com o trecho de cada dia, os 145 opcionais de cada dia, fotos e descrição dos
+pontos, demonstração animada de cada dia e módulos extras (clima, checklist/reservas, gastos, modo na estrada, agenda .ics,
+perfil de altitude, diário, mapa topográfico para usar sem sinal).
 
 Origem dos dados: a planilha `C:\Users\JoaoS\OneDrive\Área de Trabalho\Viagem Motorhome Costa Oeste EUA - out-nov 2026.xlsx`
 (abas Painel, Roteiro, Veiculos, Orcamento, Reservas, Riscos, Campings, Checklist; versão de 07/09/2026), feita numa
@@ -25,8 +26,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev/navegador.ps1 -Sai
 - O painel do navegador do app (Browser pane) fica escondido em segundo plano: aí `requestAnimationFrame` para e o mapa
   não termina de carregar. Use o `navegador.ps1` para conferir. O `preview_start` desta sessão lia o `launch.json` da
   pasta antiga (Andrelândia); o `serve.ps1` foi rodado em segundo plano.
-- `window.app` expõe `{ mapa, abrirDia, mostrarViagem, abrirOpcional, showPane, setSheet, setCollapsed, usaB }`
-  (`app.mapa.map` é o mapa MapLibre).
+- `window.app` expõe `{ mapa, abrirDia, mostrarViagem, abrirOpcional, showPane, setSheet, setCollapsed, usaB, ext, ctx }`
+  (`app.mapa.map` é o mapa MapLibre; `app.ext` mostra o que os módulos registraram; `app.ctx` é o ctx dos módulos).
+- Trabalho grande foi feito com workflows multiagente (construção → revisão cética; teste → confirmação); os agentes só
+  editam os arquivos do próprio módulo e o integrador (a sessão principal) mexe em app.js, mapa.js, sw.js e index.html.
 
 **Site:** https://joaoapsalg-ux.github.io/viagem-motorhome/ — repositório público
 https://github.com/joaoapsalg-ux/viagem-motorhome. Cada push na `main` publica sozinho (`.github/workflows/pages.yml`).
@@ -37,7 +40,8 @@ noreply do GitHub. Por ser público: **nada de números de voo, de reserva, valo
 
 ```
 index.html        HTML completo + CSS (tokens claro/escuro do Andrelândia; Barlow / Barlow Condensed / IBM Plex Mono).
-                  Barra (#rail: Roteiro · Mapa · Alertas · Sobre) + painel (#pane, largura ajustável, recolhível);
+                  Barra (#rail: Roteiro · Mapa · Preparar · Gastos · Alertas · Sobre) + painel (#pane, largura
+                  ajustável, recolhível);
                   ≥701 px o painel empurra o mapa (no tablet, no máximo 45% da tela); ≤700 gaveta (meia/alta/baixa),
                   com a bússola embaixo à direita acima da gaveta
 src/app.js        dados, estado (dia escolhido, plano A/B por dia), lista dos dias, ficha do dia, alertas, opcionais,
@@ -47,16 +51,29 @@ src/mapa.js       MapLibre GL JS 6.11.2 (ESM do jsDelivr): estilo OpenFreeMap (l
                   r-setas, r-toque); marcadores HTML reaproveitados por chave (pernoites, número do dia, paradas);
                   arrumação em 2 passadas (pontos primeiro; paradas do dia nunca somem; nomes abrem à direita ou à
                   esquerda); margem do painel/gaveta aplicada antes de cada enquadramento (setPadding não interrompe
-                  câmera); sem sinal usa o estilo do outro tema se o pedido não estiver guardado
+                  câmera); sem sinal usa o estilo do outro tema se o pedido não estiver guardado; sem sinal o 'load'
+                  é "cutucado" (triggerRepaint), senão às vezes não chegava; camada 'topo' (USGS Topo) só aparece sem
+                  sinal e quando falta no cache algum bloco do mapa normal da vista (#conferirTopo, senão nomes dobram)
 src/tilecache.js  protocolo tc:// → Cache API (guardado primeiro; estilo/letras/ícones atualizados em segundo plano;
-                  bloco usado volta ao fim da fila e o aparar, 1×/abertura, apaga os menos usados acima de 5.000)
+                  bloco usado volta ao fim da fila e o aparar, 1×/abertura, apaga os menos usados acima de 5.000;
+                  caches.match acha também os blocos do pacote 'mapa-pacote-v1', que não são copiados para cá)
+src/mod/*.js      módulos (contrato em src/mod/LEIAME.md; lista MODULOS no app.js; arquivos no CASCO do sw.js):
+                  clima (previsão Open-Meteo 16 dias + normal da época em data/clima.json), preparar (checklist,
+                  reservas, "Levar meus dados" — exporta o localStorage sem '.cache' no nome; data/checklist.json,
+                  data/reservas.json), gastos, estrada (cartão com GPS: km feitos, próxima parada, posto, sol), agenda
+                  (.ics), perfil (altitude do trecho; data/perfis.json de tools/build_perfil.ps1), diario (notas e
+                  fotos no IndexedDB, "Baixar o diário" em .html), pacote (baixa o USGS Topo ao longo da viagem para
+                  'mapa-pacote-v1'), demo (demonstração animada de cada dia e "A viagem em 2 minutos")
+data/fotos.json   foto (Wikimedia Commons, hotlink 960/500 px, crédito e licença) e descrição de cada ponto ('p:<id>');
+                  sem foto: locadora, hotel_lax, mt_carmel, new_priest
 src/util.js       store (localStorage 'viagem-motorhome.'), formatos pt-BR, cores dos dias, ícones SVG
 sw.js             service worker: casco do app num cache por versão (instalação tudo ou nada; __VERSAO__ trocado no
                   deploy) e MapLibre + fontes do Google num cache fixo (libs-v1); em produção, guardado primeiro
 data/roteiro.json dias (de/para, fuso, rota, paradas, pernoite, notas, planoB {rota, quando, paradas, pernoite?,
-                  de/para?, acompanha?}, usarB = motivo para começar no plano B), fim, opcionais, notasPontos
+                  de/para?, acompanha?}, usarB = motivo para começar no plano B, navegar_sem = paradas que ficam fora
+                  do link do Google Maps porque estão no caminho), fim, opcionais, notasPontos
 data/rotas.geojson 20 linhas (d01–d13, planos B d06b/d09b/d12b/d13b, opcionais o1–o3), com km, horas (carro), trechos
-data/pontos.json  65 pontos { nome, lat, lon }
+data/pontos.json  68 pontos { nome, lat, lon }
 data/alertas.json situação de estradas/parques conferida na web em 04/10/2026 (itens com gravidade, dias, fontes)
 data/opcionais.json opcionais de cada dia (trilha, mirante, passeio, atracao, comida, pratico): coordenadas, duração,
                   acesso, custo, reserva, motorhome, estado em out/2026; 'etapa' = O1–O3. O app mostra na ficha do dia
@@ -75,9 +92,11 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - A locadora (ponto `locadora`, saída do d01 e chegada do d13/d13b) está no aeroporto como aproximação: trocar as
   coordenadas em tools/rotas_entrada.json quando souber o endereço e rodar o build_rotas.ps1. O pernoite do dia 13 é
   `hotel_lax` (separado). O d11 passa pelo ponto `new_priest` (New Priest Grade), que também vai no link do Google Maps.
-- Offline: os OpenFreeMap Terms proíbem baixar em massa sem permissão — por isso **não há** botão "baixar o mapa da
-  viagem"; fica guardado o que foi visto. Alternativas estudadas: pedir permissão à OpenFreeMap; pacote do USGS
-  (domínio público, exportação permitida); .pmtiles próprio extraído da Protomaps no Actions.
+- Offline: os OpenFreeMap Terms proíbem baixar em massa sem permissão — o mapa normal só guarda o que foi visto. Para
+  usar sem sinal há o pacote do USGS Topo (domínio público, exportação permitida; módulo pacote, no Sobre): Básico
+  ~1.500–2.100 blocos, Completo ~6.600–9.400. Outras alternativas estudadas: pedir permissão à OpenFreeMap; .pmtiles
+  próprio extraído da Protomaps no Actions.
+- Antelope Canyon é opcional (decisão do João): prioridade 'vale' nos opcionais e "Opcional" nas reservas.
 - Alertas são um retrato de 04/10/2026; o app diz a data e manda conferir na véspera.
 - Tema claro por padrão (o João pediu); "Automático" e "Escuro" ficam guardados se escolhidos.
 - "Tempo do dia": horas de luz (nascer no começo, pôr no fim, cada um no seu fuso: `utc` [início, fim] no roteiro;
@@ -89,18 +108,17 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - Pedir permissão antes de baixar qualquer arquivo (dizer nome, origem e tamanho).
 - Testar antes de entregar e dizer o que não foi testado (ex.: GPU real, celular de verdade).
 
-## Pendências (04/10/2026, sessão interrompida pelo limite de uso)
+## Pendências
 
-- O João AUTORIZOU (04/10) estes downloads: perfil de altitude (~50 consultas à API de elevação da Open-Meteo →
-  data/perfis.json), média da época do clima (~12 consultas ao archive-api da Open-Meteo, ERA5 2016–2025 →
-  data/clima.json via tools/build_clima.ps1) e teste do pacote offline (~300 blocos do USGS Topo, só no Chrome de teste).
-- Módulos que faltam construir (src/mod/LEIAME.md tem o contrato; o João pediu "pode fazer tudo" para todos):
-  perfil, diario, pacote (os agentes anteriores recusaram por falta desse contexto), demo (demonstração de cada dia com
-  fotos e informações — workflow parado no meio; ver se src/mod/demo.js existe e está inteiro). Depois de prontos,
-  pôr na lista MODULOS do src/app.js e no CASCO do sw.js.
-- Revisões dos módulos clima, gastos, estrada, agenda e preparar foram interrompidas: revisar/testar antes de publicar
-  de novo (o publicado em 97b98a4 é o retrato de antes da revisão).
-- Opcionais: completos (145, as 5 regiões verificadas; Antelope Canyon como 'vale', opcional por decisão do João).
-- Fotos e descrições dos pontos (data/fotos.json, Wikimedia Commons, chaves 'p:<ponto>' e 'o:<opcional>'): pesquisa
-  parada no meio; refazer (o app já mostra foto/descrição nas paradas, pernoite e opcionais quando houver dados).
+- Downloads já feitos com autorização do João (04/10): perfil de altitude (Open-Meteo elevation → data/perfis.json),
+  normal da época (archive-api Open-Meteo → data/clima.json) e teste do pacote (blocos do USGS Topo só no Chrome de
+  teste; passou do combinado de ~300 — não baixar mais sem pedir).
+- Para o João decidir: os dias 13 e 12b passam pela SR-154 (San Marcos Pass, ~660 m, rampas de ~8%); a US-101 por
+  Gaviota é mais suave para motorhome.
+- Ganchos sugeridos pelos módulos (não obrigatórios): `ctx.enquadrarDia(n)`, `ctx.margemMapa()` (estrada e demo usam
+  `ctx.mapa().setPadding`), `ctx.ligarGPS()`/`gpsLigado()` (estrada clica no #locate), previsão do clima no ctx (a demo
+  mostra só a normal), aviso aos módulos depois do "Juntar". O diário não vai no "Levar meus dados" (só no .html).
+- Fotos dos opcionais ('o:<id>') ainda não pesquisadas (só a do Antelope, 'o:page_antelope_canyon'); as dos 4
+  pontos sem foto também não. 'p:lax' tem foto, mas nenhum lugar do app a mostra (o fim da viagem usa locadora/hotel_lax).
+- parks.ca.gov recusa conexão do Brasil (links oficiais dos opcionais da costa; nos EUA devem abrir).
 - Agendada para 17/10 9h a nova pesquisa dos alertas (tarefa "viagem-motorhome-alertas").

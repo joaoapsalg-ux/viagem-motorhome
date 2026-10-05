@@ -407,6 +407,7 @@ const NOMES = [
   [/^gastos\./, 'ajuste dos gastos', 'ajustes dos gastos'],
   [/^diario\./, 'anotação do diário', 'anotações do diário'],
   [/^(fundo|sombra|3d|planob|opc|check\.soFalta|check\.quando|estrada\.min)$/, 'preferência', 'preferências'],
+  [/^pacote\.(tipo|b|opc|sempre)$/, 'escolha do mapa sem sinal', 'escolhas do mapa sem sinal'],
 ];
 function nomeDe(k) {
   for (const [re, s, p] of NOMES) if (re.test(k)) return [s, p];
@@ -414,8 +415,9 @@ function nomeDe(k) {
   return [`item de “${q}”`, `itens de “${q}”`];
 }
 const comNome = ([s, p], q) => `${q} ${q === 1 ? s : p}`;
-/** guardado que é só cópia do que veio da rede (previsão do tempo etc.): não viaja */
-const ehCache = (k) => k === 'clima.prev' || /(^|\.)cache(\.|$)/.test(k);
+/** guardado que é só cópia do que veio da rede (previsão do tempo etc.) ou conta do que está neste aparelho
+ *  (pacote.meta: os blocos do mapa guardados aqui): não viaja nem entra pelo Juntar */
+const ehCache = (k) => k === 'clima.prev' || k === 'pacote.meta' || /(^|\.)cache(\.|$)/.test(k);
 function parse(s) { try { return { ok: true, v: JSON.parse(s) }; } catch { return { ok: false, v: s }; } }
 /** quantos "itens" um valor tem (lista: elementos; objeto: soma dos valores; o resto: 1) */
 function tamanho(v) {
@@ -775,6 +777,7 @@ function estilo() {
     .prep-r .seg2 label { padding: 14px 4px; }
     .prep-r-mais summary { padding: 11px 0; }
     .prep-dia-res .lnk, .prep-r-meta .lnk { padding: 7px 0; }
+    .prep-add input, .prep-campo, textarea.prep-campo { font-size: 16px; }   /* menos de 16 px faz o iPhone dar zoom */
   }
   @media (prefers-reduced-motion: reduce) { .prep-bar > span, .prep-it, .prep-cat > summary svg { transition: none; } .prep-flash { animation: none; } }
   /* impressão: só a lista (montada em #prep-print no fim do body) */
@@ -834,7 +837,7 @@ export function iniciar(c) {
   // outra aba do app mudou os dados: acompanha
   addEventListener('storage', (e) => {
     if (e.key?.startsWith(PREFIXO + 'check.') || e.key?.startsWith(PREFIXO + 'reservas.')) { lerEstado(); renderCheck(); renderReservas(); }
-    if (e.key?.startsWith(PREFIXO)) atualizarDescDados();
+    if (e.key?.startsWith(PREFIXO) && !ehCache(e.key.slice(PREFIXO.length))) atualizarDescDados();   // o pacote.meta muda a cada 2 s durante o download
   });
   carregar();   // em segundo plano: não segura a abertura do app
 }

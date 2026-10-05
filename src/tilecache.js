@@ -50,6 +50,37 @@ async function tocar(chave) {
 const baseAtualizada = new Set();   // estilo/letras/ícones já conferidos na rede nesta abertura
 
 /**
+ * "Conectado sem internet" (Wi-Fi de camping, sinal sem dados): o navegador diz que está online, mas todo pedido
+ * falha. Depois de algumas falhas de rede seguidas, `rede.semInternet` liga e o evento 'mudou' avisa o app; o
+ * primeiro pedido que der certo desliga. Enquanto ligado, uma sondagem leve (só cabeçalho) a cada 30 s confere a volta.
+ */
+export const rede = Object.assign(new EventTarget(), { semInternet: false });
+const FALHAS_SEM_INTERNET = 4;
+let falhasSeguidas = 0, sonda = 0, sondando = false;
+/** a internet responde? (só o cabeçalho de um arquivo pequeno do mapa base; sem CORS, basta chegar resposta) */
+const sondar = () => fetch(`https://tiles.openfreemap.org/styles/liberty?sonda=${Date.now()}`,
+  { method: 'HEAD', mode: 'no-cors', cache: 'no-store', signal: comPrazo(null, 10000) }).then(() => true, () => false);
+function mudar(sem) {
+  if (sem === rede.semInternet) return;
+  rede.semInternet = sem;
+  clearInterval(sonda);
+  if (sem) {
+    sonda = setInterval(() => {
+      if (navigator.onLine && document.visibilityState === 'visible') sondar().then((ok) => { if (ok) marcarRede(true); });
+    }, 30000);
+  }
+  rede.dispatchEvent(new Event('mudou'));
+}
+function marcarRede(ok) {
+  if (ok) { falhasSeguidas = 0; mudar(false); return; }
+  if (rede.semInternet || ++falhasSeguidas < FALHAS_SEM_INTERNET || sondando) return;
+  // falhas seguidas podem ser de um servidor só (ex.: o USGS fora do ar): confirma com a sondagem antes de avisar
+  sondando = true;
+  sondar().then((ok) => { sondando = false; if (ok) falhasSeguidas = 0; else mudar(true); });
+}
+addEventListener('online', () => marcarRede(true));
+
+/**
  * Busca um recurso do mapa. Primeiro o guardado (abre na hora, mesmo com sinal fraco); sem cópia, a rede.
  * Estilo, letras e ícones mudam de vez em quando: com cópia guardada, são atualizados em segundo plano.
  */
@@ -60,14 +91,21 @@ export async function buscar(url, signal) {
   try { hit = temCache ? await caches.match(chave, { ignoreVary: true }) : undefined; } catch { /* sem Cache API */ }
   if (hit) {
     if (bloco) tocar(chave);
-    else if (navigator.onLine && !baseAtualizada.has(chave)) {
+    else if (navigator.onLine && !rede.semInternet && !baseAtualizada.has(chave)) {
       baseAtualizada.add(chave);
       fetch(chave, { mode: 'cors', credentials: 'omit', signal: comPrazo(null, 15000) })
         .then((r) => { if (r.ok) guardar(CACHE_BASE, chave, r); }).catch(() => {});
     }
     return hit;
   }
-  const r = await fetch(chave, { mode: 'cors', credentials: 'omit', signal: comPrazo(signal, 15000) });
+  let r;
+  try {
+    r = await fetch(chave, { mode: 'cors', credentials: 'omit', signal: comPrazo(signal, 15000) });
+  } catch (e) {
+    if (!signal?.aborted) marcarRede(false);   // cancelado pelo mapa (zoom) não conta; falha ou prazo estourado conta
+    throw e;
+  }
+  marcarRede(true);   // até um 404 mostra que a internet funciona
   if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status} ${chave}`), { status: r.status });
   if (temCache) guardar(bloco ? CACHE_BLOCOS : CACHE_BASE, chave, r.clone());
   return r;

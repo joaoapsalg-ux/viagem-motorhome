@@ -1,7 +1,7 @@
 // Mapa da viagem para usar sem sinal: baixa o topográfico do USGS (domínio público; a exportação de blocos é
 // permitida) num corredor de 4 km para cada lado das estradas da viagem e em volta dos pernoites e paradas, e guarda
 // no cache próprio 'mapa-pacote-v1' (o aparar do tilecache.js não mexe nele). O tilecache.js acha esses blocos
-// (caches.match procura em todos os caches) e o mapa mostra a camada 'topo' quando não há sinal.
+// (caches.match procura em todos os caches) e, sem sinal, o mapa mostra a camada 'topo' onde falta o mapa normal da vista.
 // A OpenFreeMap fica de fora: os termos dela proíbem baixar em massa. Contrato dos módulos: src/mod/LEIAME.md.
 
 const CACHE = 'mapa-pacote-v1';
@@ -21,6 +21,8 @@ const PACOTES = {
     texto: 'O básico, mais perto no caminho (zoom 13) e com ruas e trilhas em volta dos pernoites e paradas (até o zoom 15).' },
 };
 const temCache = typeof caches !== 'undefined';
+/** internet de verdade: o app sabe também do "conectado sem internet" (ctx.online); sem esse gancho, vale o navegador */
+const sinal = () => ctx?.online?.() ?? navigator.onLine;
 
 let ctx, U;
 let sec = null;            // a seção no Sobre › Sem sinal
@@ -210,7 +212,7 @@ async function travarTela(on) {
  */
 export async function baixar(opcoes = escolha()) {
   if (job || apagando || !temCache) return null;
-  if (!navigator.onLine) { status('Sem internet agora. Baixe quando estiver no Wi-Fi.', 'erro'); return null; }
+  if (!sinal()) { status('Sem internet agora. Baixe quando estiver no Wi-Fi.', 'erro'); return null; }
   const plano = calcular(opcoes);
   if (plano.total > LIMITE_USGS) { status(`Pacote grande demais (${U.nf(plano.total)} blocos; o USGS permite até ${U.nf(LIMITE_USGS)}).`, 'erro'); return null; }
   pausaSinal = null;
@@ -241,7 +243,7 @@ export async function baixar(opcoes = escolha()) {
   salvarMeta();
   desenharEspaco();
   // a internet caiu e já voltou enquanto os pedidos terminavam: segue sozinho
-  if (j.motivo === 'sinal') setTimeout(() => { if (navigator.onLine && pausaSinal && !job) { const e = pausaSinal; pausaSinal = null; baixar(e); } }, 1500);
+  if (j.motivo === 'sinal') setTimeout(() => { if (sinal() && pausaSinal && !job) { const e = pausaSinal; pausaSinal = null; baixar(e); } }, 1500);
   const mb = fmtMB(meta.bytes);
   if (j.motivo === 'espaco') status(`Acabou o espaço no aparelho: ${U.nf(meta.n)} blocos guardados (${mb}). Libere espaço${j.plano.tipo === 'completo' ? ' ou escolha o pacote Básico' : ''}.`, 'erro');
   else if (j.motivo === 'sinal') status('A internet caiu: o download continua sozinho quando ela voltar.', 'erro');
@@ -249,7 +251,7 @@ export async function baixar(opcoes = escolha()) {
   else if (j.motivo === 'erro') status('O download parou por um erro. Toque em Continuar para tentar de novo.', 'erro');
   else if (parou) status(`Pausado: ${U.nf(meta.n)} blocos guardados (${mb}). Toque em Continuar quando quiser.`);
   else if (j.falhas) status(`Faltaram ${U.nf(j.falhas)} blocos (falha na rede). Toque em Continuar para tentar de novo.`, 'erro');
-  else { status(`Pronto: ${U.nf(meta.n)} blocos guardados (${mb}). Sem sinal, o topográfico aparece no mapa.`); ctx.aviso('Mapa da viagem guardado para usar sem sinal.'); }
+  else { status(`Pronto: ${U.nf(meta.n)} blocos guardados (${mb}). Sem sinal, o topográfico aparece onde faltar o mapa normal.`); ctx.aviso('Mapa da viagem guardado para usar sem sinal.'); }
   desenharSemPerderFoco();
   return { guardados: meta.n, novos: j.novos, n404: j.n404, falhas: j.falhas, MB: +(meta.bytes / 2 ** 20).toFixed(2), motivo: j.motivo ?? (parou ? 'pausa' : null) };
 }
@@ -342,7 +344,7 @@ function criar() {
     <p class="pacote-st" id="pacote-st" role="status" tabindex="-1"></p>
     <p class="pacote-guard" id="pacote-guard"></p>
     <p class="hint" id="pacote-espaco"></p>
-    <label class="row" for="pacote-sempre"><span>Mostrar o topográfico também com sinal (ajuda com sinal fraco; o mapa fica mais carregado)</span><input type="checkbox" id="pacote-sempre"${U.store.get('pacote.sempre') === '1' ? ' checked' : ''}></label>
+    <label class="row" for="pacote-sempre"><span>Usar o topográfico onde o mapa normal ainda não carregou (ajuda com sinal fraco)</span><input type="checkbox" id="pacote-sempre"${U.store.get('pacote.sempre') === '1' ? ' checked' : ''}></label>
     <p class="cc-note">Topográfico: USGS The National Map (domínio público). O mapa normal (OpenFreeMap) não pode ser baixado em massa pelos termos de uso: dele fica guardado só o que você já viu. Tamanhos estimados.</p>`;
   pai.append(el);
   el.addEventListener('change', (ev) => {
@@ -359,7 +361,7 @@ function criar() {
     if (!b) return;
     if (b.id === 'pacote-ir') {
       if (job) { pausar(); return; }
-      if (!navigator.onLine) { status('Sem internet agora. Baixe quando estiver no Wi-Fi.', 'erro'); return; }
+      if (!sinal()) { status('Sem internet agora. Baixe quando estiver no Wi-Fi.', 'erro'); return; }
       baixar();
     } else if (b.id === 'pacote-apagar') {
       const volta = () => { delete b.dataset.confirmar; b.textContent = APAGAR; };
@@ -445,7 +447,7 @@ function desenhar() {
   const p = calcular(e), f = faltam(p);
   const ir = sec.querySelector('#pacote-ir'), prog = sec.querySelector('#pacote-prog');
   prog.hidden = !job;
-  const online = navigator.onLine;
+  const online = sinal();
   sec.querySelectorAll('.pacote-ops input, .pacote-cx input').forEach((i) => { i.disabled = !!job; });
   if (job) { ir.textContent = 'Pausar'; ir.disabled = false; ir.classList.remove('btn--main'); desenharProgresso(); }
   else {
@@ -468,11 +470,11 @@ function desenhar() {
   ap.hidden = !n || !!job;
 }
 
-/** o topográfico por baixo também com sinal (opção para sinal fraco) */
+/** o topográfico onde falta o mapa normal: sem sinal e, com a opção para sinal fraco, também com sinal */
 function aplicarTopo() {
   const m = ctx.mapa();
   if (!m) return;
-  m.setSemSinal(!navigator.onLine || U.store.get('pacote.sempre') === '1');
+  m.setSemSinal(!sinal() || U.store.get('pacote.sempre') === '1');
 }
 
 export function iniciar(c) {
@@ -497,7 +499,8 @@ export function iniciar(c) {
       if (!job) lerGuardados(true).then(desenhar);
       desenhar(); desenharEspaco();
     },
-    aoSinal: (online) => {
+    aoSinal: () => {
+      const online = sinal();   // não só o aviso do navegador: também o "conectado sem internet"
       if (!online && job) { pausaSinal = job.opcoes; pausar('sinal'); }
       else if (online && pausaSinal && !job) { const e = pausaSinal; pausaSinal = null; baixar(e); }
       aplicarTopo();

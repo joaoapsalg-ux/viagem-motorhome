@@ -215,7 +215,7 @@ function eventoDevolucao(d) {
     desc: [a.programacao, /tanque/i.test(a.programacao ?? '') ? '' : 'Devolva já abastecido e com os tanques esvaziados.', a.notas, `No app: ${linkDia(d.n)}`].filter(Boolean).join('\n\n'),
     local: lugar('locadora', 'Locadora do motorhome (Los Angeles)'), url: linkDia(d.n),
     inicio: { data: d.data, hora: ini, tz }, fim: { data: d.data, hora: d.prazo, tz },
-    alarme: { gatilho: duracao(-DEVOLUCAO.alarmeMin), texto: `Hora de sair: devolver o motorhome até ${d.prazo}h` },
+    alarme: { gatilho: duracao(-DEVOLUCAO.alarmeMin), texto: `Hoje: devolver o motorhome até ${d.prazo}h` },
   };
 }
 /** voo de volta (sem número do voo: o repositório é público) */

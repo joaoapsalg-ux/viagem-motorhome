@@ -5,8 +5,13 @@
 // Contrato dos módulos: src/mod/LEIAME.md.
 
 const PERTO_KM = 5;        // opcional a menos disso de um lugar do dia entra no cartão dele; mais longe, ganha cena própria
+const ROTA_KM = 5;         // ...mas só se ficar a até isso da rota em uso (o do outro plano fica de fora), ou se estiver marcado
 const MAX_LONGE = 3;       // no máximo 3 cenas de opcionais longe das paradas
-const ALVO = { dia: 90, viagem: 120 };   // duração máxima de cada demonstração (s)
+// duração máxima de cada demonstração (s); só passa disso o que for preciso para ler no ritmo de LEITURA (o dia mais
+// cheio, o 9 pela Tioga, fica em ~3 min)
+const ALVO = { dia: 150, viagem: 120 };
+const LEITURA = 4;         // palavras por segundo, no máximo, de tudo o que a cena mostra (o tempo de ler vale mais que o alvo)
+const PAL_TEXTO = 40;      // o texto do lugar na cena: a 1ª frase, e a 2ª se as duas juntas tiverem até isso de palavras
 const PITCH = 50;
 // duração mínima (s) e quanto dela a câmera leva voando até o lugar (fração, teto em s)
 const TEMPO = {
@@ -17,8 +22,9 @@ const DIF = { facil: 'fácil', moderada: 'moderada', dificil: 'difícil' };
 const G_ALERTA = { alta: 0, media: 1 };
 const NOME_G = { alta: 'Alerta alto', media: 'Atenção' };
 const SEMANA = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-// camadas da rota do app que ficam apagadas enquanto a linha da demonstração é desenhada por cima
-const APAGAR = ['r-ativa', 'r-shuttle', 'r-contorno'];
+// camadas da rota do app que ficam apagadas enquanto a linha da demonstração é desenhada por cima (também a do outro
+// plano e as das etapas opcionais, que senão ficam mais fortes que a rota em uso)
+const APAGAR = ['r-ativa', 'r-shuttle', 'r-contorno', 'r-alt', 'r-alt-contorno', 'r-opc'];
 
 const ICO = {
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.8v14.4L19 12Z" fill="currentColor"/></svg>',
@@ -56,6 +62,7 @@ const CSS = `
   .demo-fotos img.is-sem { visibility: hidden; }
   @keyframes demo-kb { from { transform: scale(1); } to { transform: scale(1.08); } }
   .demo-ft figcaption { font: 10.5px/1.35 var(--f-data); color: var(--ink-soft); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .demo-fotos:not(.is-1) + figcaption { -webkit-line-clamp: 5; }   /* mosaico: um crédito por foto (atribuição inteira à vista) */
   .demo-ft figcaption a { color: inherit; text-decoration: none; }
   .demo-ft figcaption a:hover { text-decoration: underline; }
   .demo-corpo { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 2px; min-width: 0; min-height: 0; }
@@ -142,7 +149,7 @@ const root = document.documentElement;
 export const _teste = {
   ritmo: 1,
   estado: () => demo && { tipo: demo.tipo, n: demo.n, k: demo.k, t: +demo.t.toFixed(2), pausado: demo.pausado,
-    cenas: demo.cenas.map((c) => ({ tipo: c.tipo, titulo: c.titulo, dur: +c.dur.toFixed(1), fotos: c.fotos.length, h0: c.h0, h1: c.h1 })) },
+    cenas: demo.cenas.map((c) => ({ tipo: c.tipo, titulo: c.titulo, dur: +c.dur.toFixed(1), pal: c.pal, fotos: c.fotos.length, h0: c.h0, h1: c.h1 })) },
   ir: (k) => { if (!demo) return; if (demo.pausado) continuar(); irPara(k); },
   pausar: () => { if (demo && !demo.pausado) pausar(); },
 };
@@ -341,8 +348,55 @@ const fatoAltitude = (z) => (z == null ? null : F('alt', sinal(`~${U.nf(Math.rou
 /** sinal de menos tipográfico nos números negativos (Badwater fica abaixo do nível do mar) */
 const sinal = (s) => s.replace(/(^|[\s~])-(?=\d)/g, '$1−');
 /** hora de sair para devolver o veículo no prazo (arredondada para baixo, de 5 em 5 min) */
-const saidaAte = (d, T) => U.fmtHora(Math.floor((d.prazo - T.estrada - 0.5) * 12) / 12);
+const saidaAte = (d, T) => U.fmtHora(Math.floor((d.prazo - T.estrada - 0.25) * 12) / 12);   // a mesma conta da ficha (app.js)
+/** horário de saída que a programação já traz ("Saída até ~6h30", "Saída às 8h"): a demonstração usa esse, não a conta */
+const saidaDaProg = (txt) => txt?.match(/\bSa[ií]da (até|às) (~?\d{1,2}h(?:\d{2})?)/i);
 const minusc = (s) => (s ? s[0].toLowerCase() + s.slice(1) : '');
+const maiusc = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
+const nPal = (s) => (s ? s.split(/\s+/).filter(Boolean).length : 0);
+/** frases de um texto (sem quebrar em "Mr. D'z", "tel. 928…" nem em iniciais como "G. Edward") */
+function frases(txt) {
+  const out = [], re = /[.!?…]["”)]?\s+(?=["“(]?[A-ZÀ-ÖØ-Þ0-9])/g;
+  let ini = 0, m;
+  while ((m = re.exec(txt))) {
+    const f = txt.slice(ini, m.index + m[0].trimEnd().length);
+    if (/(?:^|[\s(])(?:Mr|Mrs|Ms|Dr|Sr|Sra|St|Mt|Ft|Jr|Av|[Tt]el|[A-Z])\.$/.test(f)) continue;
+    out.push(f.trim());
+    ini = m.index + m[0].length;
+  }
+  if (ini < txt.length) out.push(txt.slice(ini).trim());
+  return out.filter(Boolean);
+}
+/**
+ * Na cena, só o começo do texto do lugar (1 ou 2 frases, para dar tempo de ler); o texto inteiro fica na ficha. Com a
+ * 1ª frase curta demais para dizer o que é o lugar ("É a parada 5 do shuttle."), a 2ª entra com uma folga maior.
+ */
+function resumo(txt, max = PAL_TEXTO) {
+  const fs = frases(txt ?? '');
+  if (!fs.length) return '';
+  const n0 = nPal(fs[0]), teto = max && n0 < 10 ? max + 20 : max;
+  return fs[1] && n0 + nPal(fs[1]) <= teto ? `${fs[0]} ${fs[1]}` : fs[0];
+}
+// palavras que contam para saber se uma frase repete outra (sem acento; as curtas e as muito comuns ficam de fora)
+const COMUNS = new Set('para como pelo pela pelos pelas mais quando esta estao dele dela deles delas depois antes entre sobre tambem porque entao onde fica ficam mesmo muito pode podem cada todo toda todos todas isso esse essa este aqui voce seus suas numa nesse nessa desse dessa sempre ainda'.split(' '));
+function raizes(s) {
+  const r = new Set();
+  for (const w of s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().match(/[a-z0-9]{4,}/g) ?? []) if (!COMUNS.has(w)) r.add(w.slice(0, 5));
+  return r;
+}
+/**
+ * Tira da nota as frases que repetem o texto do cartão (60% ou mais das palavras dela já estão lá). Só o texto entra na
+ * conta: palavras soltas dos fatos ("reserva", "entrada") e do título ("Riverside Walk") derrubavam frases que dizem
+ * outra coisa ("Yosemite não exige reserva de entrada", "último shuttle de volta às 18h15").
+ */
+function semRepetir(nota, texto) {
+  if (!nota) return '';
+  const vistas = raizes(texto ?? '');
+  return frases(nota).filter((f) => {
+    const r = [...raizes(f)];
+    return r.length < 3 || r.filter((x) => vistas.has(x)).length / r.length < 0.6;
+  }).join(' ');
+}
 function alertaDoDia(n) {
   const opc = new Set(ctx.dados.roteiro.opcionais.flatMap((o) => o.alertas ?? []));
   return ctx.dados.alertas.itens.filter((a) => !a.geral && !opc.has(a.id) && a.dias?.includes(n) && G_ALERTA[a.gravidade] != null)
@@ -352,7 +406,7 @@ function alertaDoDia(n) {
 function F(ic, b, t, g) { return { ic, b: b ?? '', t: t ?? '', g: g ?? '' }; }
 const temFoto = (f) => !!(f?.foto || f?.mini);
 const fotoDe = (chave) => { const f = ctx.foto(chave); return temFoto(f) ? f : null; };
-const textoDe = (chave) => ctx.foto(chave)?.texto ?? '';
+const textoDe = (chave) => resumo(ctx.foto(chave)?.texto);
 const queroSet = () => ctx.quero();
 function metaOp(o) {
   const t = U.TIPO_OPC[o.tipo] ?? U.TIPO_OPC.atracao;
@@ -369,15 +423,18 @@ function cenasDoDia(d) {
   const lugares = itens.map((it) => ctx.llPonto(it.id));
   const pn = a.pernoite;
 
-  // opcionais que merecem aparecer: os marcados e os imperdíveis (perto de um lugar do dia → no cartão dele)
+  // opcionais que merecem aparecer: os marcados e os imperdíveis (perto de um lugar do dia → no cartão dele). Longe dos
+  // lugares, o imperdível só ganha cena se ficar perto da rota em uso (no plano B, os do caminho do A ficam de fora)
   const perto = itens.map(() => []), longe = [];
   for (const o of ctx.opsDoDia(n)) {
     const q = quero.has(o.id);
     if (!q && (o.prioridade !== 'imperdivel' || o.estado === 'fechado')) continue;
     let j = 0, dm = Infinity;
     lugares.forEach((ll, i) => { const x = distKm(ll, [o.lon, o.lat]); if (x < dm) { dm = x; j = i; } });
-    if (dm <= PERTO_KM) perto[j].push(o);
-    else if (o.dia === n || q) longe.push({ o, q, ...projetar(R, [o.lon, o.lat]) });
+    if (dm <= PERTO_KM) { perto[j].push(o); continue; }
+    if (o.dia !== n && !q) continue;
+    const x = projetar(R, [o.lon, o.lat]);
+    if (q || x.dist <= ROTA_KM) longe.push({ o, q, ...x });
   }
   const ordemOp = (x, y) => quero.has(y.id) - quero.has(x.id) || (x.tipo === 'pratico') - (y.tipo === 'pratico');
   perto.forEach((l) => l.sort(ordemOp));
@@ -389,7 +446,9 @@ function cenasDoDia(d) {
   // 1. o dia: o trecho inteiro, km, tempo, sol, clima da noite e o alerta mais importante
   const fatos = [shuttle ? F('onibus', U.fmtKm(P.km), `de shuttle (~${U.fmtH(P.horas)} só de ida); o motorhome fica no camping`)
     : F('km', U.fmtKm(P.km), `~${U.fmtH(T.estrada)} de motorhome (${U.fmtH(P.horas)} de carro; estimativa)`)];
-  if (d.prazo) fatos.push(F('relogio', `Devolução até ${d.prazo}h:`, `com ~${U.fmtH(T.estrada)} de estrada, saia até ~${saidaAte(d, T)}`));
+  // devolução: se a programação (texto deste cartão) já diz a hora de sair, não põe a conta (seriam duas horas diferentes)
+  const sProg = d.prazo ? saidaDaProg(a.programacao) : null;
+  if (d.prazo && !sProg) fatos.push(F('relogio', `Devolução até ${d.prazo}h:`, `com ~${U.fmtH(T.estrada)} de estrada, saia até ~${saidaAte(d, T)}`));
   fatos.push(F('sol', 'Sol:', T.mudaFuso ? `nasce ${U.fmtHora(T.nasce)} (${T.ini.nome}) · põe ${U.fmtHora(T.poe)} (${T.fim.nome}), hora local`
     : `nasce ${U.fmtHora(T.nasce)} · põe ${U.fmtHora(T.poe)} (${U.fmtH(T.luz)} de luz${d.livre_desde > T.nasce ? ` depois da retirada, às ${d.livre_desde}h` : ''})`));
   if (T.n) fatos.push(F('estrela', `${T.n} opciona${T.n > 1 ? 'is marcados' : 'l marcado'}`, `(+${U.fmtH(T.opc)})`));
@@ -414,12 +473,14 @@ function cenasDoDia(d) {
   const ini = itens[0], fIni = fotoComOp('p:' + ini.id, perto[0]);
   const fatosIni = [F('sol', 'Nascer do sol:', U.fmtHora(T.nasce))];
   if (d.livre_desde) fatosIni.push(F('relogio', `A partir das ${d.livre_desde}h:`, 'retirada do veículo à tarde'));
-  if (d.prazo) fatosIni.push(F('relogio', `Saia até ~${saidaAte(d, T)}`, `para devolver até ${d.prazo}h`));
+  if (d.prazo) fatosIni.push(sProg ? F('relogio', `Saída ${sProg[1]} ${sProg[2]}`, `para devolver até ${d.prazo}h`)
+    : F('relogio', `Saia até ~${saidaAte(d, T)}`, `para devolver até ${d.prazo}h`));
   if (!ini.fora) fatosIni.push(fatoAltitude(altitudeEm(R, 0)));
-  const txtIni = textoDe('p:' + ini.id);
-  if (txtIni && notas[ini.id]) fatosIni.push(F('pin', null, notas[ini.id]));
+  // o texto do lugar (ou, sem ele, a nota curta do ponto); a nota do dia sem as frases que o texto já diz
+  const txtIni = textoDe('p:' + ini.id) || maiusc(notas[ini.id] ?? '');
+  const notaIni = semRepetir(a.notas, txtIni);
   cenas.push({ tipo: 'saida', rot: 'Saída', cor, rota: R.id, h0: 0, h1: 0, ponta: !ini.fora,
-    titulo: nome(ini.id), texto: txtIni || notas[ini.id] || '', nota: a.notas ? `Para saber: ${a.notas}` : '', fatos: fatosIni.filter(Boolean),
+    titulo: nome(ini.id), texto: txtIni, nota: notaIni ? `Para saber: ${notaIni}` : '', fatos: fatosIni.filter(Boolean),
     ops: perto[0], fotos: fIni ? [fIni] : [],
     camera: () => ({ c: lugares[0], z: 12, b: ini.fora ? rumoEntre(lugares[0], R.co[0]) : rumoNaRota(R, 0), p: PITCH }), giro: 12, aproxima: 0.2 });
 
@@ -435,7 +496,8 @@ function cenasDoDia(d) {
       if (o.reserva) fs.push(F('cal', 'Reserva:', o.reserva));
       if (x.dist >= 1) fs.push(F('pin', null, `a ~${U.nf(x.dist, x.dist < 10 ? 1 : 0)} km da rota do dia`));
       cenas.push({ tipo: 'opcional', rot: `Opcional · ${t.nome}${q ? ' · ★ marcado' : ' · imperdível'}`, cor, rota: R.id, h0: h, h1, ponta: true,
-        titulo: o.nome, texto: textoDe('o:' + o.id) || o.resumo, nota: o.estado !== 'ok' && o.situacao ? o.situacao : o.dica || '', fatos: fs, ops: [],
+        // texto e dica só no começo (1 ou 2 frases), como nos lugares: o opcional inteiro fica na ficha do dia
+        titulo: o.nome, texto: textoDe('o:' + o.id) || resumo(o.resumo), nota: resumo(o.estado !== 'ok' && o.situacao ? o.situacao : o.dica), fatos: fs, ops: [],
         fotos: f ? [f] : [], camera: () => ({ c: [o.lon, o.lat], z: 12.5, b: rumoNaRota(R, h1), p: PITCH }), giro: 12, aproxima: 0.25 });
       h = h1; ordem = Math.max(ordem, x.ordem);
     }
@@ -467,10 +529,11 @@ function cenasDoDia(d) {
       const prox = ctx.diaPorN.get(n + 1);
       if (prox) { const A = ctx.ativo(prox); fs.push(F('seguir', 'Amanhã:', `dia ${prox.n}, ${A.de} → ${A.para} (${U.fmtKm(ctx.rotaAtiva(prox).properties.km)})`)); }
       else fs.push(F('seguir', 'Amanhã:', minusc(ctx.dados.roteiro.fim.texto)));
-      cena = { tipo: 'pernoite', rot: 'Pernoite', titulo: pn.nome, texto: texto || nota, nota: [pn.notas, texto ? nota : ''].filter(Boolean).join(' ') };
+      // a nota do pernoite no roteiro já diz o que a nota curta do ponto diz: só uma das duas
+      cena = { tipo: 'pernoite', rot: 'Pernoite', titulo: pn.nome, texto: texto || maiusc(nota), nota: pn.notas || (texto ? maiusc(nota) : '') };
     } else {
       iPar++;
-      cena = { tipo: 'parada', rot: `Parada ${iPar} de ${nPar}`, titulo: nome(it.id), texto: texto || nota, nota: texto ? nota : '' };
+      cena = { tipo: 'parada', rot: `Parada ${iPar} de ${nPar}`, titulo: nome(it.id), texto: texto || maiusc(nota), nota: texto ? maiusc(nota) : '' };
     }
     const b = it.fora ? rumoEntre(pontoEm(R, h0), ll) : rumoNaRota(R, h1);
     cenas.push({ ...cena, cor, rota: R.id, h0, h1, ponta: !it.fora || pern, fatos: fs.filter(Boolean), ops, fotos: f ? [f] : [],
@@ -478,6 +541,8 @@ function cenasDoDia(d) {
     h = h1;
     if (alvo) { ordem = alvo.ordem; anterior = nome(it.id); }
   });
+  // paradas, opcionais e pernoite: a nota sem as frases que o texto do mesmo cartão já diz
+  for (const sc of cenas) if (sc.tipo !== 'abertura' && sc.tipo !== 'saida') sc.nota = semRepetir(sc.nota, sc.texto);
   return cenas;
 }
 
@@ -501,12 +566,14 @@ function cenasDaViagem() {
     F('cama', `${dias.length - noitesHotel} noites no motorhome`, noitesHotel ? `e ${noitesHotel} no hotel` : ''),
     F('pin', null, estados.join(' · ')),
   ];
-  const planosB = ativos.filter(({ a }) => a.b).map(({ d, a }) => `dia ${d.n} (${a.b.titulo})`);
+  // os dias no plano B (o nome de cada plano aparece na cena do dia)
+  const planosB = ativos.filter(({ a }) => a.b).map(({ d }) => String(d.n));
   const cenas = [];
   const todo = () => enquadrar(cantos, { pitch: 20, maxZoom: 8 });
   const [, m0, d0] = dias[0].data.split('-'), [yf, mf, df] = rt.fim.data.split('-');
   cenas.push({ tipo: 'viagem-abertura', rot: 'A viagem', cor: 'var(--accent)', titulo: rt.titulo, h0: null, h1: null, feito: 0, ponta: false,
-    texto: `De ${d0}/${m0} a ${df}/${mf}/${yf}: ${listaPt(destinos)}.`, nota: planosB.length ? `Pelo plano B: ${planosB.join('; ')}.` : '',
+    texto: `De ${d0}/${m0} a ${df}/${mf}/${yf}: ${listaPt(destinos)}.`,
+    nota: planosB.length ? `Pelo plano B ${planosB.length > 1 ? `nos dias ${listaPt(planosB)}` : `no dia ${planosB[0]}`}.` : '',
     fatos: fatosTotais, ops: [], fotos: [], selo: { b: 'Costa Oeste', s: `${dias.length} dias de motorhome` }, camera: todo, giro: 3, aproxima: 0.1 });
   const usadas = new Set();
   ativos.forEach(({ d, a, P }, i) => {
@@ -524,23 +591,30 @@ function cenasDaViagem() {
     if (al?.gravidade === 'alta') fs.push(F('aviso', `${NOME_G.alta} ·`, al.titulo, 'alta'));
     const pts = [...R.co, ...ctx.listaParadas(d).map((it) => ctx.llPonto(it.id))];
     cenas.push({ tipo: 'viagem-dia', n: d.n, rot: `Dia ${d.n} · ${U.fmtData(d.data, d.semana)}`, cor: U.corDia(d.n),
-      titulo: `${a.de} → ${a.para}`, texto: a.programacao, nota: '', fatos: fs, ops: [], fotos: f ? [f] : [],
+      // da programação, só a 1ª frase (a viagem inteira cabe em ~2 min no ritmo de ler)
+      titulo: `${a.de} → ${a.para}`, texto: resumo(a.programacao, 0), nota: '', fatos: fs, ops: [], fotos: f ? [f] : [],
       rota: R.id, h0: 0, h1: R.total, feito: i, ponta: true, selo: { b: `Dia ${d.n}`, s: `${U.fmtData(d.data, d.semana)} · ${d.estado}` },
       camera: () => enquadrar(pts, { pitch: 35, maxZoom: shuttle ? 12 : 10.5 }), giro: 4, aproxima: 0.12 });
   });
   const sem = SEMANA[new Date(Date.UTC(+yf, +mf - 1, +df)).getUTCDay()];
   cenas.push({ tipo: 'viagem-fim', rot: 'Volta', cor: 'var(--accent)', titulo: `Volta · ${sem} ${df}/${mf}`, h0: null, h1: null, feito: dias.length, ponta: false,
+    // os totais já estão na abertura: aqui fica só a volta e o aviso
     texto: rt.fim.texto, nota: 'Distâncias pela estrada (OSRM/OpenStreetMap); tempos de motorhome estimados. Confira os alertas na véspera de cada trecho.',
-    fatos: fatosTotais, ops: [], fotos: [], camera: todo, giro: -3, aproxima: 0.1 });
+    fatos: [], ops: [], fotos: [], camera: todo, giro: -3, aproxima: 0.1 });
   return cenas;
 }
 
-/** duração de cada cena pelo tanto de texto (dá tempo de ler), sem passar do alvo da demonstração */
+/**
+ * Duração de cada cena pelo tanto de texto: tudo o que o cartão mostra a no máximo LEITURA palavras por segundo, mais
+ * um respiro para olhar o mapa e a foto. Passando do alvo da demonstração, corta só o respiro: o tempo de ler fica.
+ */
 function ajustarTempos(cenas, alvo, minimo) {
-  const palavras = (sc) => [sc.titulo, sc.texto, sc.nota, ...sc.fatos.map((f) => `${f.b} ${f.t}`), ...sc.ops.map((o) => o.nome)].join(' ').split(/\s+/).filter(Boolean).length;
-  for (const sc of cenas) sc.dur = Math.max(TEMPO[sc.tipo][0], Math.min(11, 2.6 + palavras(sc) * 0.1));
-  const total = cenas.reduce((s, sc) => s + sc.dur, 0);
-  if (total > alvo) for (const sc of cenas) sc.dur = Math.max(minimo, (sc.dur * alvo) / total);
+  const palavras = (sc) => nPal([sc.titulo, sc.texto, sc.nota, ...sc.fatos.map((f) => `${f.b} ${f.t}`),
+    ...sc.ops.slice(0, 3).map((o) => `${o.nome} ${metaOp(o)} · marcado`)].join(' '));
+  for (const sc of cenas) { sc.pal = palavras(sc); sc.dur = Math.max(TEMPO[sc.tipo][0], 2 + sc.pal / LEITURA); }
+  const piso = (sc) => Math.max(minimo, sc.pal / LEITURA);
+  const total = cenas.reduce((s, sc) => s + sc.dur, 0), folga = cenas.reduce((s, sc) => s + sc.dur - piso(sc), 0);
+  if (total > alvo && folga > 0) { const f = Math.min(1, (total - alvo) / folga); for (const sc of cenas) sc.dur -= (sc.dur - piso(sc)) * f; }
   for (const sc of cenas) sc.tv = Math.min(TEMPO[sc.tipo][2], sc.dur * TEMPO[sc.tipo][1]);
 }
 
@@ -605,11 +679,23 @@ function htmlFotos(fotos) {
     const srcset = grande && f.mini && f.foto ? ` srcset="${U.esc(f.mini)} 500w, ${U.esc(f.foto)} 960w" sizes="(max-width: 700px) 94vw, 360px"` : '';
     return `<img src="${U.esc(f.mini || f.foto)}"${srcset} alt="${U.esc(f.alt || f.titulo || '')}" decoding="async">`;
   }).join('');
-  const creditos = fs.filter((f) => f.credito).map((f) => ({ f, t: `${f.credito}${f.licenca && !f.credito.includes(f.licenca) ? `, ${f.licenca}` : ''}` }));
-  const cred = creditos.map(({ f, t }) => (f.pagina ? `<a href="${U.esc(f.pagina)}" target="_blank" rel="noopener">${U.esc(t)}</a>` : U.esc(t))).join(' · ');
+  // o crédito do fotos.json é "Foto: Autor · Licença · Wikimedia Commons": tira o rótulo e a fonte de cada um (vão uma
+  // vez só); no mosaico, "Fotos: A (licença) · B (licença) · Wikimedia Commons"
+  const FONTE = /\s*·\s*(Wikimedia Commons)\s*$/i, fontes = new Set();
+  const creditos = fs.filter((f) => f.credito).map((f) => {
+    let t = f.credito.replace(/^Fotos?:\s*/i, '').trim(), lic = f.licenca ?? '';
+    const m = t.match(FONTE);
+    if (m) { fontes.add(m[1]); t = t.replace(FONTE, ''); }
+    if (lic && t.endsWith(` · ${lic}`)) t = t.slice(0, -(lic.length + 3));   // fica o autor; a licença volta logo abaixo
+    else if (lic && t.includes(lic)) lic = '';                               // a licença já está no meio do crédito
+    return { f, t: !lic ? t : fs.length === 1 ? `${t} · ${lic}` : `${t} (${lic})` };
+  });
+  if (!creditos.length) return `<div class="demo-fotos is-${fs.length}">${imgs}</div>`;
+  const cauda = [...fontes].map((x) => ` · ${x}`).join('');
   const rot = `${fs.length > 1 ? 'Fotos' : 'Foto'}: `;
+  const cred = creditos.map(({ f, t }) => (f.pagina ? `<a href="${U.esc(f.pagina)}" target="_blank" rel="noopener">${U.esc(t)}</a>` : U.esc(t))).join(' · ');
   // crédito inteiro também no title (se um nome muito longo passar das linhas do cartão)
-  return `<div class="demo-fotos is-${fs.length}">${imgs}</div>${cred ? `<figcaption title="${U.esc(rot + creditos.map((x) => x.t).join(' · '))}">${rot}${cred}</figcaption>` : ''}`;
+  return `<div class="demo-fotos is-${fs.length}">${imgs}</div><figcaption title="${U.esc(rot + creditos.map((x) => x.t).join(' · ') + cauda)}">${rot}${cred}${U.esc(cauda)}</figcaption>`;
 }
 function htmlFato(f) {
   return `<li${f.g ? ` class="is-${f.g}"` : ''}><i aria-hidden="true">${ICO[f.ic] ?? U.ICONE[f.ic] ?? ''}</i><span>${f.b ? `<b>${U.esc(f.b)}</b>${f.t ? ' ' : ''}` : ''}${U.esc(f.t)}</span></li>`;
@@ -750,11 +836,15 @@ function desenharLinha(sc, t) {
 /** margem de baixo do mapa = altura do cartão (o centro da vista fica na parte à mostra) */
 function aplicarMargem() {
   const D = demo, M = ctx.mapa();
-  if (!D.margemSuja) return;
+  // o app refaz a margem do mapa sem avisar (recolher o painel, tecla H, arrastar a borda): se ela não é mais a do
+  // cartão, aplica de novo
+  const trocada = M && D.margem != null && Math.abs((M.pad?.bottom ?? 0) - D.margem) > 1;
+  if (!D.margemSuja && !trocada) return;
   D.margemSuja = false;
   const r = cartao.getBoundingClientRect(), cont = M?.map.getContainer().getBoundingClientRect();
   const fundo = cont ? cont.bottom : innerHeight, baixo = Math.max(0, Math.round(fundo - r.top + 10));
   root.style.setProperty('--demo-h', `${Math.max(0, Math.round(innerHeight - r.top + 4))}px`);
+  D.margem = baixo;
   if (M && Math.abs((M.pad?.bottom ?? 0) - baixo) > 1) M.setPadding({ bottom: baixo }, false);
 }
 /** câmera da cena no tempo t (depois do voo, um giro lento em volta do lugar) */
@@ -779,7 +869,8 @@ function aplicarCamera(sc, t) {
 }
 
 // ---------- andamento ----------
-function comecar(op) {
+/** op: { tipo: 'dia', n } ou { tipo: 'viagem' }; foco = false deixa o foco onde está (troca de plano pelo painel) */
+function comecar(op, { foco = true } = {}) {
   let cenas;
   try { cenas = op.tipo === 'dia' ? cenasDoDia(ctx.diaPorN.get(op.n)) : cenasDaViagem(); } catch (e) { console.warn('demo:', e); ctx.aviso('Não deu para montar a demonstração.'); return; }
   if (!cenas?.length) return;
@@ -787,7 +878,9 @@ function comecar(op) {
   if (demo) encerrar({ troca: true });
   ajustarTempos(cenas, ALVO[op.tipo], op.tipo === 'dia' ? 5.5 : 6);
   cenas.forEach((sc, i) => { sc.passo = op.tipo === 'dia' ? `Dia ${op.n} · ${i + 1} de ${cenas.length} · ${sc.rot}` : `${i + 1} de ${cenas.length}${sc.rot ? ` · ${sc.rot}` : ''}`; });
-  demo = { ...op, cenas, k: -1, t: 0, pausado: false, mexeu: false, ultimo: null, recolhido, margemSuja: true, cabeca: '', feitoK: NaN, orig: null };
+  // rota: a do dia quando começou (se a pessoa trocar o plano no painel, a demonstração recomeça com a outra)
+  const rota = op.tipo === 'dia' ? cenas[0].rota : null;
+  demo = { ...op, rota, cenas, k: -1, t: 0, pausado: false, mexeu: false, ultimo: null, recolhido, margemSuja: true, cabeca: '', feitoK: NaN, orig: null };
   document.body.classList.add('demo-on');
   if (ctx.celular()) ctx.setCollapsed(true);   // no celular fica só a barra: o cartão e o mapa dividem a tela
   cartao.hidden = false;
@@ -795,8 +888,21 @@ function comecar(op) {
   garantirCamadas();
   irPara(0, { inicio: true });
   botaoPausa();
-  el.pausa.focus({ preventScroll: true });
+  if (foco) el.pausa.focus({ preventScroll: true });
   demo.raf = requestAnimationFrame(quadro);
+}
+/**
+ * A pessoa trocou Principal/Plano B com a demonstração aberta: as paradas, os opcionais e a linha são outros, então a
+ * demonstração recomeça da abertura com a rota nova (a cena em que estava não existe no outro plano). O foco fica no
+ * rádio do plano (as setas continuam trocando) e, se estava pausada, continua pausada.
+ */
+function trocouPlano() {
+  const D = demo, pausado = D.pausado;
+  comecar({ tipo: 'dia', n: D.n }, { foco: false });
+  if (demo === D) { encerrar({ restaurar: false }); return; }   // não deu para montar a nova: fecha (senão tentaria a cada quadro)
+  if (pausado) { demo.pausado = demo.mexeu = true; botaoPausa(); }   // "continuar" leva a câmera, voando, para a abertura
+  // na tela, o selo do dia e a 1ª cena mostram que recomeçou; para o leitor de tela, uma frase
+  ctx.anunciar(`${ctx.usaB(D.n) ? 'Plano B' : 'Rota principal'}: a demonstração do dia ${D.n} recomeçou com a rota nova, ${demo.cenas.length} cenas${pausado ? ', pausada' : ''}.`);
 }
 function irPara(k, { inicio = false } = {}) {
   const D = demo;
@@ -827,6 +933,7 @@ function quadro(ts) {
   // a pessoa abriu outro dia (ou um dia, na viagem): a demonstração para onde está
   const aberto = ctx.diaAberto();
   if (D.tipo === 'dia' ? aberto !== D.n : aberto != null) { encerrar({ restaurar: false }); return; }
+  if (D.tipo === 'dia' && ctx.rotaAtiva(ctx.diaPorN.get(D.n)).properties.id !== D.rota) { trocouPlano(); return; }
   if (!D.pausado) {
     D.t += dt;
     if (D.t >= D.cenas[D.k].dur) {
@@ -929,8 +1036,10 @@ function caixa(pts) {
   return [[a, b], [c, e]];
 }
 function teclado(e) {
-  // campos de texto e janelas de outros módulos (o Esc delas fecha a janela, não a demonstração) ficam de fora
-  if (!demo || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable], dialog, [role="dialog"]')) return;
+  // só com o foco no cartão, no mapa ou em lugar nenhum: no painel (gráfico de altitude, barras dos gastos, plano do dia,
+  // atalhos do app) e nas janelas de outros módulos (o Esc delas fecha a janela), as teclas são de lá
+  const t = e.target, nossa = t === document.body || t === root || t === document || cartao.contains(t) || !!t.closest?.('#map');
+  if (!demo || !nossa || e.ctrlKey || e.metaKey || e.altKey || t.closest?.('input, textarea, select, [contenteditable], dialog, [role="dialog"]')) return;
   const k = e.key;
   if (k === ' ' || k === 'Spacebar') {
     if (e.target.closest?.('button, a, summary')) return;   // no botão, o espaço é o clique dele

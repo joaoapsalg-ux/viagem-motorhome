@@ -70,7 +70,7 @@
   a { color: var(--accent); }
 
   /* ===== mapa ===== */
-  #map { position: fixed; inset: 0; left: var(--side-w); }
+  #map { position: fixed; inset: 0; left: var(--side-w); isolation: isolate; }   /* o z-index dos marcadores fica aqui dentro */
   #map canvas { outline: none; }
   .map-c { left: calc(var(--side-w) + (100vw - var(--side-w)) / 2) !important; }
   .sheet { position: fixed; background: var(--panel); border: 1px solid var(--panel-line); box-shadow: var(--shadow); border-radius: var(--r); }
@@ -78,6 +78,7 @@
   .hint { font-size: 12.5px; color: var(--ink-soft); margin: 0; }
   /* créditos do MapLibre na mesma cara, acima da gaveta no celular */
   .maplibregl-ctrl-bottom-right { bottom: var(--map-bottom); transition: bottom .28s ease; }
+  #map .maplibregl-control-container > div { z-index: 1001; }   /* acima dos marcadores (z-index até 1000) */
   .map-off { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: min(420px, calc(100% - 32px)); box-sizing: border-box; margin: 0; padding: 14px 16px; font-size: 14.5px; line-height: 1.5; }
   #toast, #net { width: max-content; max-width: calc(100vw - var(--side-w) - 32px); box-sizing: border-box; }
   #toast:empty { display: none; }
@@ -192,7 +193,7 @@
   .days { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
   .day { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 40px 1fr auto; gap: 1px 12px; align-items: center; padding: 9px 12px 9px 10px; border-radius: var(--r); background: var(--tile); border: 1px solid color-mix(in srgb, var(--panel-line) 70%, transparent); transition: border-color .15s, background .15s; }
   .day > i { grid-row: span 2; width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; font: 700 18px/1 var(--f-display); font-style: normal; color: #fff; background: color-mix(in srgb, var(--c) 70%, #000); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
-  .day b { font: 700 16px/1.1 var(--f-display); letter-spacing: .03em; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .day b { font: 700 16px/1.1 var(--f-display); letter-spacing: .03em; text-transform: uppercase; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .day small { font: 12px/1.3 var(--f-data); color: var(--ink-soft); }
   .day .tags { grid-row: span 2; display: grid; gap: 3px; justify-items: end; }
   .day:hover { border-color: var(--accent); }
@@ -296,8 +297,9 @@
   /* ===== fotos (Wikimedia Commons) ===== */
   .ft { margin: 0; display: grid; gap: 3px; }
   .ft img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px; background: color-mix(in srgb, var(--ink) 8%, var(--tile)); }
-  .ft.is-sem img { visibility: hidden; height: 0; aspect-ratio: auto; }
-  .ft figcaption { font: 10.5px/1.3 var(--f-data); color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ft.is-sem img, .ft.is-sem figcaption { display: none; }   /* sem sinal: sem foto, sem crédito solto */
+  /* o crédito inteiro (autor e licença são exigidos pela CC BY): quebra em até 3 linhas, e o title tem tudo */
+  .ft figcaption { font: 10.5px/1.3 var(--f-data); color: var(--ink-soft); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: anywhere; }
   .ft figcaption a { color: inherit; text-decoration: none; }
   .ft figcaption a:hover { text-decoration: underline; }
   .st-mais { grid-column: 2 / -1; display: grid; gap: 6px; padding: 4px 0 8px; }
@@ -306,6 +308,10 @@
   .stops button.go[aria-expanded="true"] b::after { content: ' ⌄'; }
   .stay-card .stay-ft { grid-column: 1 / -1; margin-bottom: 6px; }
   .op-ft { margin-top: 6px; }
+  .opc-lugares { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 2px; }
+  .opc-lugares .op-mais { padding: 0 2px; border-bottom: 1px solid color-mix(in srgb, var(--panel-line) 60%, transparent); }
+  .opc-lugares .op-mais[open] { padding-bottom: 8px; }
+  .opc-lugares .op-mais .op-res { margin-top: 6px; }
 
   /* ===== opcionais do dia ===== */
   .apt-modes { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -433,10 +439,12 @@
     #pane-grip { height: 34px; }
     .pane-head { padding-top: 26px; }
     #pane-x { width: 40px; height: 40px; top: 14px; right: 8px; }
-    .btn--small { min-height: 38px; }
+    .btn--small { min-height: 40px; }
     .seg2 label { padding: 11px 4px; }
-    .checks .row { min-height: 34px; }
-    .stops button.go { padding: 4px 4px; }
+    .checks .row { min-height: 40px; }
+    .stops button.go { padding: 4px 4px; min-height: 40px; box-sizing: border-box; }
+    .apt-modes label { min-height: 40px; box-sizing: border-box; }
+    .op-mais summary { padding: 14px 0; }
   }
   @media (prefers-reduced-motion: reduce) {
     #pane, #day-badge, .maplibregl-ctrl-bottom-right { transition: none; }

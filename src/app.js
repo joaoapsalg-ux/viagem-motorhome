@@ -1,6 +1,6 @@
 // App da viagem: painel (roteiro, mapa, alertas, sobre), escolha do dia e da rota, e o que o mapa deve mostrar.
 import { $, $$, store, nf, fmtKm, fmtH, MOTORHOME, fmtData, fmtDia, esc, isDark, reduzMovimento, hojeISO, diasEntre, corDia, ICONE, TIPO_OPC, sol, fmtHora } from './util.js';
-import { resumoArmazenamento, pedirPersistencia, aparar } from './tilecache.js';
+import { resumoArmazenamento, pedirPersistencia, aparar, rede } from './tilecache.js';
 
 // ---------- abertura ----------
 const status = $('#status');
@@ -61,12 +61,17 @@ let filtroOp = 'todos';   // filtro dos opcionais do dia: 'todos', 'quero' ou um
 /** opcionais que o casal marcou como "quero fazer" (guardado no aparelho) */
 const lerQuero = () => { try { const v = JSON.parse(store.get('quero') ?? '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
 const quero = new Set(lerQuero());
-/** relê o guardado antes de gravar: o "Juntar" do Preparar pode ter trazido estrelas de outro celular */
+/**
+ * Relê o guardado antes de gravar: o "Juntar" do Preparar pode ter trazido estrelas de outro celular. Se não der para
+ * ler (armazenamento bloqueado), fica o que está na memória.
+ */
 function setQuero(id, on) {
-  quero.clear(); for (const q of lerQuero()) quero.add(q);
+  if (store.get('quero') != null) { quero.clear(); for (const q of lerQuero()) quero.add(q); }
   if (on) quero.add(id); else quero.delete(id);
   store.set('quero', JSON.stringify([...quero]));
 }
+/** há internet de verdade? (o navegador diz que sim e o mapa não está falhando seguido, como num Wi-Fi sem internet) */
+const online = () => navigator.onLine && !rede.semInternet;
 
 // ---------- módulos (src/mod/*.js; contrato em src/mod/LEIAME.md) ----------
 /** registro do que os módulos acrescentam: blocos na ficha do dia, etiquetas na lista dos dias e ganchos */
@@ -261,7 +266,8 @@ function marcadores() {
     paradas = ids.map((id, k) => ({
       chave: `o:${id}`, lngLat: llPonto(id), cls: `mk--stop${f.properties.pontos.includes(id) ? '' : ' is-off'}`, style: '--c:var(--contour)',
       html: `<span class="g">${k + 1}</span><span class="nm">${esc(nomePonto(id))}</span>`, titulo: nomePonto(id),
-      prioridade: 80 - k, zoomNome: 6, essencial: true, aoClicar: () => mapa.voar(llPonto(id), 12.5),
+      prioridade: 80 - k, zoomNome: 6, essencial: true,
+      aoClicar: () => verLugar(id),
     }));
   }
   // opcionais: os do dia escolhido (respeitando o filtro) ou os da etapa; na viagem toda, só os marcados
@@ -488,7 +494,9 @@ $('#trip').addEventListener('click', (e) => {
 
 // ---------- painel: ficha do dia ----------
 function linkNavegar(d) {
-  const ids = rotaAtiva(d).properties.pontos, P = ids.map((id) => pontos[id]);
+  // navegar_sem: paradas que ficam no caminho de qualquer jeito (o Google Maps no navegador do celular aceita só 3)
+  const sem = new Set(d.navegar_sem ?? []);
+  const ids = rotaAtiva(d).properties.pontos.filter((id, i, a) => i === 0 || i === a.length - 1 || !sem.has(id)), P = ids.map((id) => pontos[id]);
   const ll = (p) => `${p.lat},${p.lon}`;
   const q = new URLSearchParams({ api: '1', origin: ll(P[0]), destination: ll(P.at(-1)), travelmode: 'driving' });
   if (P.length > 2) q.set('waypoints', P.slice(1, -1).map(ll).join('|'));
@@ -517,7 +525,7 @@ const fotoPonto = (id) => { const f = ctxFoto('p:' + id); return f && (f.foto ||
 /** foto do Wikimedia Commons com crédito (carrega só quando aparece; sem sinal, fica o fundo neutro) */
 function htmlFoto(f, cls = '') {
   return `<figure class="ft ${cls}"><img loading="lazy" decoding="async" src="${esc(f.mini || f.foto)}"${f.mini && f.foto ? ` srcset="${esc(f.mini)} 500w, ${esc(f.foto)} 960w" sizes="(max-width: 700px) 92vw, 380px"` : ''} alt="${esc(f.alt || f.titulo || '')}" onerror="this.closest('figure').classList.add('is-sem')">
-    ${f.credito ? `<figcaption>${f.pagina ? `<a href="${esc(f.pagina)}" target="_blank" rel="noopener">${esc(f.credito)}</a>` : esc(f.credito)}</figcaption>` : ''}</figure>`;
+    ${f.credito ? `<figcaption title="${esc(f.credito)}">${f.pagina ? `<a href="${esc(f.pagina)}" target="_blank" rel="noopener">${esc(f.credito)}</a>` : esc(f.credito)}</figcaption>` : ''}</figure>`;
 }
 /** detalhe de uma parada da lista: foto, descrição e botões (fechado até tocar no nome) */
 function htmlPontoMais(id, papel) {
@@ -532,9 +540,22 @@ function htmlPontoMais(id, papel) {
 function verPonto(id) {
   const bt = $(`#day .stops [data-ponto="${CSS.escape(id)}"][aria-expanded]`);
   if (!bt) { mapa?.voar(llPonto(id), 12.5); return; }
+  // o detalhe fica na ficha: mostra o painel Roteiro se estiver recolhido ou em outro painel
+  showPane('roteiro');
   if (mqPhone.matches) setSheet('half');
   if (bt.getAttribute('aria-expanded') !== 'true') bt.click();
-  requestAnimationFrame(() => bt.closest('li')?.scrollIntoView({ block: 'center', behavior: reduzMovimento() ? 'auto' : 'smooth' }));
+  // pelo começo: o item aberto (foto e texto) costuma ser mais alto que a gaveta, e centrado o nome ficaria de fora
+  requestAnimationFrame(() => bt.closest('li')?.scrollIntoView({ block: 'start', behavior: reduzMovimento() ? 'auto' : 'smooth' }));
+  if (!mqPhone.matches) mapa?.voar(llPonto(id), 12.5);
+}
+/** abre um lugar da etapa opcional aberta (vindo do marcador no mapa): painel Mapa, detalhe aberto e à vista */
+function verLugar(id) {
+  const lg = document.getElementById(`lg-${id}`);
+  if (!lg) { mapa?.voar(llPonto(id), 12.5); return; }
+  showPane('mapa');
+  if (mqPhone.matches) setSheet('half');
+  lg.open = true;
+  requestAnimationFrame(() => lg.scrollIntoView({ block: 'start', behavior: reduzMovimento() ? 'auto' : 'smooth' }));
   if (!mqPhone.matches) mapa?.voar(llPonto(id), 12.5);
 }
 /** um opcional (cartão com "quero fazer", detalhes e botões) */
@@ -568,8 +589,11 @@ function htmlOp(o, { dia } = {}) {
 function htmlTempo(d) {
   const T = tempoDoDia(d);
   if (d.prazo) {
+    // 15 min de folga, como na programação do roteiro (que já conta abastecer e esvaziar os tanques no caminho);
+    // arredonda para baixo de 5 em 5 min
+    const saida = Math.floor((d.prazo - T.estrada - 0.25) * 12) / 12;
     return `<section class="blk"><h3>Tempo do dia <span>${ICONE.sol}nasce ${fmtHora(T.nasce)}</span></h3>
-      <p class="cc-warn">Devolução até ${d.prazo}h: com ~${fmtH(T.estrada)} de estrada, saia até ~${fmtHora(d.prazo - T.estrada - 0.5)}, ainda no escuro. Os opcionais deste dia são para depois da devolução, sem o veículo.</p></section>`;
+      <p class="cc-warn">Devolução até ${d.prazo}h: com ~${fmtH(T.estrada)} de estrada, saia até ~${fmtHora(saida)}${saida < T.nasce ? ', ainda no escuro' : ''}. Os opcionais deste dia são para depois da devolução, sem o veículo.</p></section>`;
   }
   const total = T.estrada + T.opc, sobra = T.luz - total, escala = Math.max(T.luz, total);
   const pc = (h) => `${Math.max(0, (h / escala) * 100).toFixed(1)}%`;
@@ -806,11 +830,27 @@ function renderOpcionais() {
       <b>${esc(o.de)} → ${esc(o.para)}</b><small>${fmtKm(P.km)} · ~${fmtH(horasMotorhome(P.horas))} · a partir do dia ${o.dia}</small></button>
       ${on ? `<div class="blk" style="padding:4px 2px 6px"><p>${esc(o.programacao)} Pernoite: ${esc(o.pernoite)} (${esc(o.tipo)}).</p>
         <p class="hint">${esc(o.notas)}</p>${al.length ? `<ul class="alerts">${al.map((a) => htmlAlerta(a)).join('')}</ul>` : ''}
+        ${htmlLugares(o, P)}
         ${opsDaEtapa(o.id).length ? `<ul class="ops">${opsDaEtapa(o.id).map((x) => htmlOp(x)).join('')}</ul>` : ''}</div>` : ''}`;
   }).join('');
 }
+/** lugares de uma etapa opcional com foto/descrição: o nome abre a foto, o texto e "No mapa" */
+function htmlLugares(o, P) {
+  const ids = [...new Set([...P.pontos.slice(1), ...(o.marcadores ?? [])])].filter((id) => pontos[id] && fotoPonto(id));
+  if (!ids.length) return '';
+  return `<ul class="opc-lugares" aria-label="Lugares da etapa">${ids.map((id) => {
+    const f = fotoPonto(id);
+    return `<li><details class="op-mais" id="lg-${esc(id)}"><summary>${esc(nomePonto(id))}</summary>${f.foto ? htmlFoto(f, 'op-ft') : ''}${f.texto ? `<p class="op-res">${esc(f.texto)}</p>` : ''}
+      <div class="op-acts"><button type="button" class="btn btn--small" data-ponto-mapa="${esc(id)}">${ICONE.enquadrar}No mapa</button></div></details></li>`;
+  }).join('')}</ul>`;
+}
 $('#opc-list').addEventListener('click', (e) => {
   if (cliqueOp(e)) return;
+  const pm = e.target.closest('[data-ponto-mapa]');
+  if (pm) {
+    if (mqPhone.matches) setSheet('peek');
+    return depoisDaGaveta(() => mapa?.voar(llPonto(pm.dataset.pontoMapa), 12.5));
+  }
   const b = e.target.closest('[data-opc]');
   if (!b) return;
   const id = b.dataset.opc;
@@ -941,14 +981,17 @@ addEventListener('hashchange', () => {
 });
 {
   const net = $('#net');
+  let antes = null;
   const upd = () => {
-    net.hidden = navigator.onLine;
-    mapa?.setSemSinal(!navigator.onLine);
-    ext?.chamar('aoSinal', navigator.onLine);
+    const on = online();
+    net.hidden = on;
+    // só quando muda: o módulo pacote pode ter ligado o topográfico também com sinal (aoSinal reaplica a escolha dele)
+    if (on !== antes) { mapa?.setSemSinal(!on); ext?.chamar('aoSinal', on); }
+    antes = on;
     // a internet voltou: se o mapa ficou no outro tema por falta de sinal, tenta de novo
-    if (navigator.onLine && mapa && mapa.escuroReal !== isDark()) aplicarTema();
+    if (on && mapa && mapa.escuroReal !== isDark()) aplicarTema();
   };
-  addEventListener('online', upd); addEventListener('offline', upd); upd();
+  addEventListener('online', upd); addEventListener('offline', upd); rede.addEventListener('mudou', upd); upd();
 }
 {
   const btn = $('#locate');
@@ -989,6 +1032,8 @@ const ctx = {
   atualizarDia: () => { if (sel?.tipo === 'dia') { const y = paneBody.scrollTop; renderDia(sel.n); paneBody.scrollTop = y; } },
   atualizarViagem: () => renderViagem(),
   mapa: () => mapa, celular: () => mqPhone.matches,
+  /** há internet de verdade? (navigator.onLine e o mapa não está falhando seguido: Wi-Fi sem internet conta como sem) */
+  online,
   util: { $, $$, store, nf, fmtKm, fmtH, fmtData, fmtDia, esc, isDark, reduzMovimento, corDia, ICONE, TIPO_OPC, sol, fmtHora, MOTORHOME },
   registrar: (e) => ext.registrar(e),
 };
@@ -1012,7 +1057,7 @@ try {
   progresso(0.6, 'Desenhando os trechos…');
   mapa = await Mapa.criar($('#map'), {
     escuro: isDark(), fundo: $('#f-sat').checked ? 'satelite' : 'mapa', sombra: $('#t-sombra').checked, relevo3D: $('#t-3d').checked,
-    rotas: fcRotas(), limites: caixaViagem(), aoClicarRota, semSinal: !navigator.onLine,
+    rotas: fcRotas(), limites: caixaViagem(), aoClicarRota, semSinal: !online(),
   });
   ext.chamar('aoMapa', mapa);
   mapa.map.on('rotate', () => { $('#compass-rose').style.transform = `rotate(${-mapa.map.getBearing()}deg)`; });

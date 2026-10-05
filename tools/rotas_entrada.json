@@ -95,7 +95,7 @@
     { "id": "d09b","km_planilha": 600,  "tipo": "planoB",    "dia": 9,  "perfil": "carro", "pontos": ["furnace_creek", "badwater", "ridgecrest", "bakersfield", "oakhurst", "wawona", "upper_pines"],
       "obs": "Plano B se a Tioga Road estiver fechada: Trona, Ridgecrest, Tehachapi (CA-58), Bakersfield, CA-99 e CA-41 por Oakhurst e Wawona. Mais de 10 h ao volante (de motorhome, mais): pensar em pernoite no caminho." },
     { "id": "d10", "km_planilha": 120,  "tipo": "principal", "dia": 10, "perfil": "carro", "pontos": ["upper_pines", "lower_falls", "tunnel_view", "upper_pines"] },
-    { "id": "d11", "km_planilha": 340,  "tipo": "principal", "dia": 11, "perfil": "carro", "pontos": ["upper_pines", "new_priest", "sf", "golden_gate", "hmb_sb"] },
+    { "id": "d11", "km_planilha": 340,  "tipo": "principal", "dia": 11, "perfil": "carro", "pontos": ["upper_pines", "groveland", "new_priest", "sf", "golden_gate", "hmb_sb"] },
     { "id": "d12", "km_planilha": 400,  "tipo": "principal", "dia": 12, "perfil": "carro", "pontos": ["hmb_sb", "santa_cruz", "monterey", "bixby", "mcway", "ragged_point", "morro_bay_sp"],
       "obs": "Pela Hwy 1 em Big Sur, reaberta inteira (Carmel a Cambria) em 14/09/2026. Há pare-e-siga em obras. Conferir o Caltrans QuickMap no dia: com chuva forte, a área queimada pode soltar lama e fechar a estrada; aí, plano B (d12b e d13b)." },
     { "id": "d12b","km_planilha": "560 com d13b",  "tipo": "planoB",    "dia": 12, "perfil": "carro", "pontos": ["hmb_sb", "santa_cruz", "monterey", "salinas", "solvang", "santa_barbara"],
