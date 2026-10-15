@@ -103,7 +103,7 @@
       "programacao": "Saída às 8h pela Hwy 120: depois de Groveland, desça pela New Priest Grade (fique na CA-120; não entre na Old Priest Grade, íngreme demais para motorhome). Tarde em San Francisco.",
       "notas": "Não durma com o veículo dentro de SF. Half Moon Bay fica 45 min ao sul. A Hwy 120 Oeste tem atrasos por obras em dias de semana.",
       "paradas": ["groveland", "new_priest", "sf", "golden_gate", "hmb_sb"], "navegar_sem": ["groveland"],
-      "pernoite": { "ponto": "hmb_sb", "nome": "Half Moon Bay State Beach", "tipo": "Parque", "alternativa": "Pillar Point RV Park", "preco": 45, "reserva": "reservecalifornia.com", "notas": "45 min ao sul de SF. Evita o sufoco de estacionar na cidade." }
+      "pernoite": { "ponto": "hmb_sb", "nome": "Half Moon Bay State Beach", "tipo": "Parque", "alternativa": "Pillar Point RV Park", "preco": 45, "reserva": "reservecalifornia.com", "notas": "No Francis Beach Campground, com vaga de luz (sem água nem esgoto na vaga). 45 min ao sul de SF: evita o sufoco de estacionar na cidade." }
     },
     {
       "n": 12, "data": "2026-10-30", "utc": [-7, -7], "semana": "sex", "de": "Half Moon Bay", "para": "Morro Bay", "estado": "CA",

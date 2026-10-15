@@ -1,6 +1,6 @@
 {
-  "conferido_em": "2026-10-04",
-  "fonte": "Aba Reservas da planilha (07/09/2026), atualizada com a situação de 04/10/2026. Custos são estimativas públicas em US$ (listagens, tabelas dos parques e a própria planilha), não valores pagos.",
+  "conferido_em": "2026-10-15",
+  "fonte": "Aba Reservas da planilha (07/09/2026), atualizada com a situação de 04/10/2026; as marcadas como feitas foram confirmadas nos e-mails de 14 e 15/10/2026. Custos são estimativas públicas em US$ (listagens, tabelas dos parques e a própria planilha), não valores pagos.",
   "prioridades": {
     "urgente": "Urgente",
     "alta": "Alta",
@@ -11,13 +11,13 @@
   },
   "itens": [
     {
-      "id": "hotel-lax", "prioridade": "urgente", "item": "Hotel da última noite (31/10): Huntley Santa Monica Beach",
+      "id": "hotel-lax", "feito": true, "prioridade": "urgente", "item": "Hotel da última noite (31/10): Huntley Santa Monica Beach",
       "onde": { "texto": "Booking", "url": "https://www.booking.com/" },
       "prazo": "2026-10-05", "prazo_txt": "agora", "custo_est": 160, "dia": 13,
       "notas": "Sábado de Halloween, em Santa Monica (perto do píer). Check-in a partir das 15h e saída até 12h; caução de US$ 100 no cartão na chegada; estacionamento à parte (sem carro, não precisa). O voo é às 10h10 de domingo e o horário de verão acaba nessa madrugada: saia por volta das 7h de Uber ou táxi (~30–45 min), ou combine antes o traslado do hotel (US$ 120)."
     },
     {
-      "id": "veiculo", "prioridade": "alta", "item": "Motorhome Indie Campers (Adventure Plus Select)",
+      "id": "veiculo", "feito": true, "prioridade": "alta", "item": "Motorhome Indie Campers (Adventure Plus Select)",
       "onde": { "texto": "Área de cliente da Indie Campers", "url": "https://indiecampers.com/pt/client/my-trips" },
       "prazo": "2026-10-18", "prazo_txt": "check-in online antes da retirada", "custo_est": 3430, "dia": 1,
       "notas": "Retirada em Los Angeles em 19/10 às 14h30 e devolução em 31/10 até 11h30. O check-in online e o envio do passaporte e da CNH (verificação Persona) são obrigatórios antes da retirada. O endereço da loja está na área de cliente. Na retirada, confira o comprimento do veículo (a vaga do Mather tem 21 pés), aquecedor, estrada de terra e o que vem no kit. O custo é a estimativa da planilha, não o valor pago."
@@ -29,13 +29,13 @@
       "notas": "Substitui o America the Beautiful de US$ 80 da planilha. Cobre a entrada do veículo e a taxa de US$ 100 por estrangeiro (titular e acompanhantes) em Grand Canyon, Zion e Yosemite; sem ele, só essa taxa daria US$ 600 para o casal. Leve o passaporte do titular."
     },
     {
-      "id": "watchman", "prioridade": "alta", "item": "Watchman Campground (Zion), noite de 25/10",
+      "id": "watchman", "feito": true, "prioridade": "alta", "item": "Watchman Campground (Zion), noite de 25/10",
       "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Watchman%20Campground" },
       "prazo": "2026-09-30", "custo_est": 30, "dia": 7, "noites": 1,
       "notas": "Noite de 25/10 (dia 7); a de 24/10 é no Zion White Bison Resort, em Virgin. Costuma lotar até o fim de novembro. Fica na entrada sul: dá para chegar mesmo com a SR-9 (túnel) fechada. Check-in a partir das 12h; o titular mostra documento com foto. Gerador proibido. Alternativa: Zion Canyon Campground, em Springdale."
     },
     {
-      "id": "white-bison", "prioridade": "alta", "item": "Zion White Bison Resort (Virgin), noite de 24/10",
+      "id": "white-bison", "feito": true, "prioridade": "alta", "item": "Zion White Bison Resort (Virgin), noite de 24/10",
       "onde": { "texto": "Direto com o resort", "url": "https://www.google.com/maps/search/?api=1&query=Zion+White+Bison+Resort+Virgin+UT" },
       "prazo": "2026-10-17", "prazo_txt": "cancelamento mais caro depois de 17/10", "custo_est": null, "dia": 6,
       "notas": "RV park em Virgin, na UT-9, ~25 km antes do Watchman. Vaga pull-through de até 35 pés com ligação completa (água, luz e esgoto), na área só para adultos. Check-in a partir das 13h (dá para fazer o check-in online) e saída até 11h."
@@ -59,7 +59,7 @@
       "notas": "Nem toda locadora exige, mas evita discussão no balcão. A taxa é do Detran, em reais. Peça com folga para a emissão."
     },
     {
-      "id": "mather", "prioridade": "media", "item": "Mather Campground (Grand Canyon), 2 noites",
+      "id": "mather", "feito": true, "prioridade": "media", "item": "Mather Campground (Grand Canyon), 2 noites",
       "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Mather%20Campground" },
       "prazo": "2026-09-30", "custo_est": 50, "dia": 3, "noites": 2,
       "notas": "Noites de 21 e 22/10. Só camping seco: sem torneiras, duchas nem lavanderia (NPS, 30/09); o aviso da Recreation.gov de 14/10 diz também que os banheiros do camping e o dump e a água do Camper Services estão fechados, e que fogueira e carvão estão proibidos (fogareiro a gás pode). A água só deve voltar depois de 16/11. O Trailer Village está fechado. Chegue com o galão cheio e os tanques vazios (encha e esvazie em Williams ou Tusayan). Se precisar de ligação, RV park em Tusayan ou Williams."
@@ -77,10 +77,10 @@
       "notas": "Noite de 26/10. É o único do parque que aceita reserva em outubro, alta temporada lá. Aberto em 02/10."
     },
     {
-      "id": "half-moon-bay", "prioridade": "media", "item": "Half Moon Bay State Beach",
+      "id": "half-moon-bay", "feito": true, "prioridade": "media", "item": "Half Moon Bay State Beach",
       "onde": { "texto": "reservecalifornia.com", "url": "https://www.reservecalifornia.com/" },
       "prazo": "2026-09-30", "custo_est": 45, "dia": 11,
-      "notas": "Noite de 29/10, 45 min ao sul de SF (não durma com o veículo na cidade). Situação do camping não confirmada em 04/10: o site do California State Parks estava fora do ar. Alternativa: Pillar Point RV Park."
+      "notas": "Noite de 29/10, no Francis Beach Campground, 45 min ao sul de SF (não durma com o veículo na cidade). Vaga com ligação de luz (sem água nem esgoto na vaga). Alternativa: Pillar Point RV Park."
     },
     {
       "id": "morro-bay", "prioridade": "media", "item": "Morro Bay State Park",

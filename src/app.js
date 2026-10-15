@@ -10,10 +10,28 @@ function fecharAbertura() { status.classList.add('is-out'); setTimeout(() => { s
 
 // service worker: guarda o app para abrir sem sinal (só em https ou no localhost)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
-  navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('service worker:', e));
-  // versão nova instalada enquanto o app estava aberto: avisa (a primeira instalação não conta)
-  const tinhaSW = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (tinhaSW) aviso('O app foi atualizado. Recarregue para ver a versão nova.'); });
+  const reg = navigator.serviceWorker.register('./sw.js');
+  reg.catch((e) => console.warn('service worker:', e));
+  // ao voltar ao app (celular: ele fica aberto dias), confere se saiu versão nova (no máximo a cada 30 min)
+  let conferido = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || Date.now() - conferido < 30 * 60e3) return;
+    conferido = Date.now();
+    reg.then((r) => r.update()).catch(() => {});
+  });
+  // versão nova instalada (a primeira instalação não conta): logo depois de abrir, ou com o app em segundo plano,
+  // recarrega sozinho; no meio do uso, só avisa (para não perder o que está sendo digitado)
+  const tinhaSW = !!navigator.serviceWorker.controller, aberto = Date.now();
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!tinhaSW) return;
+    const digitando = document.activeElement?.matches?.('input, textarea, select, [contenteditable]');
+    let jaRecarregou = false; try { jaRecarregou = sessionStorage.getItem('viagem-recarregou') === '1'; } catch { /* sem armazenamento */ }
+    if (!digitando && !jaRecarregou && (Date.now() - aberto < 60e3 || document.visibilityState === 'hidden')) {
+      try { sessionStorage.setItem('viagem-recarregou', '1'); } catch { /* idem */ }
+      location.reload();
+    } else aviso('Saiu uma versão nova do app: feche e abra de novo (ou recarregue) para ver.');
+  });
+  addEventListener('load', () => setTimeout(() => { try { sessionStorage.removeItem('viagem-recarregou'); } catch { /* idem */ } }, 10e3));
 }
 // no app da Tela de Início, pede para o navegador não apagar o que foi guardado
 if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) pedirPersistencia();

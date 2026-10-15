@@ -311,7 +311,10 @@ function montarImpressao() {
 function imprimir() { montarImpressao(); window.print(); }
 
 // ---------- reservas ----------
-const stDe = (id) => (resSt[id] === 'feito' || resSt[id] === 'nao' ? resSt[id] : 'pendente');
+/** situação sem marcação no aparelho: a dos dados ("feito": true = reserva confirmada, sem número nem valor) */
+const padraoDe = (id) => (reservas?.itens.find((x) => x.id === id)?.feito ? 'feito' : 'pendente');
+/** a marcada neste aparelho vale mais que a dos dados */
+const stDe = (id) => (['feito', 'nao', 'pendente'].includes(resSt[id]) ? resSt[id] : padraoDe(id));
 /** reserva do plano B de um dia que está no plano A (ou o contrário): não conta nos totais */
 const foraDeUso = (r) => !!r.plano && (r.plano === 'B') !== ctx.usaB(r.dia);
 /** reserva de um opcional (ex.: Antelope Canyon): só pesa depois de feita ou, se tiver o id do opcional, quando ele tem a estrela "quero fazer" */
@@ -362,7 +365,7 @@ function htmlTopoReservas() {
   return `<div class="prep-h"><h3 id="mod-preparar-reservas-h">Reservas</h3><p class="prep-num"><b>${R.f}</b> de ${R.n} resolvidas</p></div>
     ${barra(R.f, R.n, 'Reservas resolvidas')}
     ${urg}
-    <p class="hint">Hoje é ${ddmm(hoje())}.${R.custo ? ` Ainda pendente: ~US$ ${U.nf(R.custo)} (estimativas públicas, não valores pagos).` : ''} A situação e as anotações ficam <b>só neste aparelho</b>: o app é público e não guarda números de reserva. Para passar ao outro celular, use “Levar meus dados”, abaixo.</p>`;
+    <p class="hint">Hoje é ${ddmm(hoje())}.${R.custo ? ` Ainda pendente: ~US$ ${U.nf(R.custo)} (estimativas públicas, não valores pagos).` : ''} As confirmadas já vêm como feitas; o que você marcar e as anotações ficam <b>só neste aparelho</b>: o app é público e não guarda números de reserva. Para passar ao outro celular, use “Levar meus dados”, abaixo.</p>`;
 }
 function renderReservas() {
   const el = secao('mod-preparar-reservas', 2);
@@ -375,7 +378,7 @@ function renderReservas() {
     <p class="cc-note">Lista da aba Reservas da planilha, atualizada em ${U.fmtDia(reservas.conferido_em)}. Plano B só entra na conta quando o dia estiver no plano B; opcional, só depois de marcado como feito.</p>`;
 }
 function mudarSituacao(id, v) {
-  if (v === 'pendente') delete resSt[id]; else resSt[id] = v;
+  if (v === padraoDe(id)) delete resSt[id]; else resSt[id] = v;   // igual ao dos dados: não precisa guardar
   gravar(K.st, resSt);
   sujo = true;
   const r = reservas.itens.find((x) => x.id === id), li = document.getElementById(`prep-r-${id}`);
