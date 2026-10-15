@@ -92,6 +92,10 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - Pernoites conferidos nos e-mails (15/10): dia 6 no Zion White Bison Resort, em Virgin (ponto `white_bison`,
   coordenadas do campendium.com); dia 7 no Watchman (só 25/10), e o d07 começa em Virgin (carro até o Watchman,
   depois o shuttle); dia 13 no Huntley Santa Monica Beach (o ponto continua com o id `hotel_lax`).
+- Reservas confirmadas nos e-mails levam `"feito": true` em data/reservas.json (sem número nem valor): o app mostra
+  "Feito" por padrão, a marcação do aparelho vale mais, e no "Juntar" a falta de marcação conta como o padrão.
+- Atualização do app: ao abrir ou voltar ao app, se saiu versão nova, recarrega sozinho enquanto a pessoa não mexeu
+  (ou quando o app vai para segundo plano), nunca com campo preenchido; senão, aviso fixo com "Atualizar" (app.js).
 - Planos B: dia 6 começa no desvio por Hurricane (SR-9/túnel de Zion fechada por queda de rochas desde 30/09/2026);
   dia 9 (Tioga fechada → Bakersfield + Hwy 41, 762 km); dia 12 (Hwy 1 fechar → US-101, dorme em Santa Bárbara) e o
   dia 13 acompanha o 12. A escolha de cada um fica guardada no aparelho (`rota.N`).

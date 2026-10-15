@@ -1,6 +1,6 @@
 {
-  "conferido_em": "2026-10-15",
-  "fonte": "Aba Reservas da planilha (07/09/2026), atualizada com a situação de 04/10/2026; as marcadas como feitas foram confirmadas nos e-mails de 14 e 15/10/2026. Custos são estimativas públicas em US$ (listagens, tabelas dos parques e a própria planilha), não valores pagos.",
+  "conferido_em": "2026-10-14",
+  "fonte": "Aba Reservas da planilha (07/09/2026), atualizada com a situação de 04/10/2026; as marcadas como feitas foram confirmadas nos e-mails de 14/10/2026. Custos são estimativas públicas em US$ (listagens, tabelas dos parques e a própria planilha), não valores pagos.",
   "prioridades": {
     "urgente": "Urgente",
     "alta": "Alta",
@@ -101,10 +101,10 @@
       "notas": "Noite de 20/10. Cidade de passagem, quase sempre tem vaga. Ligação completa e lavanderia. Alternativa: Zuni Village RV."
     },
     {
-      "id": "page", "prioridade": "baixa", "item": "Page Lake Powell Campground",
+      "id": "page", "feito": true, "prioridade": "baixa", "item": "Page Lake Powell Campground",
       "onde": { "texto": "Direto com o camping", "url": "https://www.google.com/maps/search/?api=1&query=Page+Lake+Powell+Campground" },
       "prazo": "2026-10-15", "custo_est": 60, "dia": 5,
-      "notas": "Noite de 23/10. Ligação completa: bom para reabastecer água depois do Grand Canyon. Alternativa: Wahweap RV & Campground."
+      "notas": "Noite de 23/10, na 849 Coppermine Rd. Vaga de motorhome com ligação completa (água, esgoto e luz de 30/50 A): bom para reabastecer a água e esvaziar os tanques depois do Grand Canyon. Check-in a partir das 13h e saída até 11h. Alternativa: Wahweap RV & Campground."
     },
     {
       "id": "visto", "prioridade": "verificar", "item": "Visto americano válido",

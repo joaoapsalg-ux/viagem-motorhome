@@ -378,7 +378,9 @@ function renderReservas() {
     <p class="cc-note">Lista da aba Reservas da planilha, atualizada em ${U.fmtDia(reservas.conferido_em)}. Plano B só entra na conta quando o dia estiver no plano B; opcional, só depois de marcado como feito.</p>`;
 }
 function mudarSituacao(id, v) {
-  if (v === padraoDe(id)) delete resSt[id]; else resSt[id] = v;   // igual ao dos dados: não precisa guardar
+  // "pendente" de uma reserva sem padrão não precisa ser guardado; nas confirmadas, a escolha fica guardada (também o
+  // "feito" de volta), para viajar no "Levar meus dados" e desfazer um "pendente" que foi para o outro celular
+  if (v === 'pendente' && padraoDe(id) === 'pendente') delete resSt[id]; else resSt[id] = v;
   gravar(K.st, resSt);
   sujo = true;
   const r = reservas.itens.find((x) => x.id === id), li = document.getElementById(`prep-r-${id}`);
@@ -532,6 +534,22 @@ function juntarValor(a, b, preferir, conta) {
   conta.mantidos++;
   return a;
 }
+/**
+ * Situações das reservas: o que não está guardado aqui vale o padrão dos dados ("feito": true), não "nada". Assim um
+ * "pendente" do outro celular numa reserva confirmada conta como diferença (e só entra com "ficar com o que veio"),
+ * em vez de entrar como novidade. Devolve null se algum lado não for um objeto (aí vale a regra geral).
+ */
+function juntarSituacoes(atual, v, preferir, conta) {
+  const A = parse(atual ?? '{}'), B = parse(v);
+  if (!A.ok || !B.ok || !ehObj(A.v) || !ehObj(B.v)) return null;
+  const aqui = { ...A.v };
+  for (const id of Object.keys(B.v)) if (!(id in aqui) && padraoDe(id) !== 'pendente') aqui[id] = padraoDe(id);
+  const out = juntarValor(aqui, B.v, preferir, conta);
+  // o que só repete o padrão e não estava guardado aqui não precisa ser gravado
+  for (const id of Object.keys(out)) if (!(id in A.v) && out[id] === padraoDe(id)) delete out[id];
+  const txt = JSON.stringify(out);
+  return atual === null && txt === '{}' ? undefined : txt;
+}
 function importar(o, preferir) {
   const rel = new Map();   // nome → { novos, trocados, mantidos }
   const mudou = new Set();   // chaves gravadas
@@ -541,8 +559,9 @@ function importar(o, preferir) {
     const atual = U.store.get(k);
     if (atual === v) continue;
     const conta = { novos: 0, trocados: 0, mantidos: 0 };
-    let final;
-    if (atual === null) { final = v; const p = parse(v); conta.novos = p.ok ? tamanho(p.v) : 1; }
+    let final = k === K.st ? juntarSituacoes(atual, v, preferir, conta) : null;
+    if (final !== null) { /* situações das reservas: já juntadas */ }
+    else if (atual === null) { final = v; const p = parse(v); conta.novos = p.ok ? tamanho(p.v) : 1; }
     else {
       const A = parse(atual), B = parse(v);
       if (A.ok && B.ok && A.v && B.v && typeof A.v === 'object' && typeof B.v === 'object') final = JSON.stringify(juntarValor(A.v, B.v, preferir, conta));
@@ -570,7 +589,8 @@ function juntar(txt, origem) {
   ctx.atualizarViagem(); ctx.atualizarDia(); sujo = false;
   const partes = [entrou.length ? `Juntado${quando}. Entrou: ${entrou.join(' · ')}.` : mantidos ? `Nada mudou${quando}.` : `Nada novo${quando}: este aparelho já tinha tudo isso.`];
   if (mantidos) partes.push(`${mantidos} ${mantidos === 1 ? 'diferença ficou' : 'diferenças ficaram'} como estava${mantidos === 1 ? '' : 'm'} aqui. Para trocar, marque “ficar com o que veio” e junte de novo.`);
-  if (falhas) partes.push('Parte não coube no armazenamento do aparelho.');
+  if (falhas && !mudou.size) partes.splice(0, partes.length, 'Nada foi juntado: este navegador não deixa o app guardar dados (aba anônima ou armazenamento bloqueado).');
+  else if (falhas) partes.push('Parte não coube no armazenamento do aparelho.');
   // o app guarda as estrelas na memória ao abrir: sem recarregar, marcar uma estrela regravaria a lista antiga por cima da que veio
   const rec = mudou.has('quero') ? 'Recarregue antes de mexer nas estrelas dos opcionais: só assim as que vieram aparecem (e não se perdem).'
     : 'Para as rotas e os outros painéis mostrarem tudo, recarregue.';

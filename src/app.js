@@ -12,26 +12,37 @@ function fecharAbertura() { status.classList.add('is-out'); setTimeout(() => { s
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname))) {
   const reg = navigator.serviceWorker.register('./sw.js');
   reg.catch((e) => console.warn('service worker:', e));
-  // ao voltar ao app (celular: ele fica aberto dias), confere se saiu versão nova (no máximo a cada 30 min)
-  let conferido = Date.now();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible' || Date.now() - conferido < 30 * 60e3) return;
-    conferido = Date.now();
-    reg.then((r) => r.update()).catch(() => {});
-  });
-  // versão nova instalada (a primeira instalação não conta): logo depois de abrir, ou com o app em segundo plano,
-  // recarrega sozinho; no meio do uso, só avisa (para não perder o que está sendo digitado)
-  const tinhaSW = !!navigator.serviceWorker.controller, aberto = Date.now();
+  // Versão nova do app (o service worker novo assumiu): recarrega sozinho se a pessoa ainda não mexeu desde que abriu
+  // ou voltou ao app, ou quando o app vai para segundo plano (sem ela ver); nunca com algo sendo digitado ou um
+  // formulário preenchido. Senão, deixa um aviso fixo com o botão "Atualizar".
+  let ignorar = !navigator.serviceWorker.controller;   // a primeira instalação não é versão nova
+  let mexeu = false, pendente = false, conferido = Date.now();
+  addEventListener('pointerdown', () => { mexeu = true; }, { capture: true, passive: true });
+  addEventListener('keydown', () => { mexeu = true; }, { capture: true });
+  const rascunho = () => document.activeElement?.matches?.('input, textarea, select, [contenteditable]')
+    || [...document.querySelectorAll('#pane input:not([type=radio]):not([type=checkbox]):not([type=file]):not([type=range]), #pane textarea')].some((e) => e.value !== e.defaultValue);
+  const podeRecarregar = () => {
+    let ultima = 0; try { ultima = +sessionStorage.getItem('viagem-recarregou') || 0; } catch { /* sem armazenamento */ }
+    return Date.now() - ultima > 120e3 && !rascunho();   // trava contra laço: no máximo uma recarga a cada 2 min
+  };
+  const recarregar = () => { try { sessionStorage.setItem('viagem-recarregou', String(Date.now())); } catch { /* idem */ } location.reload(); };
+  const avisoFixo = () => {   // sem o tempo de 5 s do aviso comum: fica até tocar
+    const t = document.getElementById('toast');
+    if (t) t.innerHTML = 'Saiu uma versão nova do app. <button type="button" class="btn btn--small" data-atualizar>Atualizar</button>';
+  };
+  document.getElementById('toast')?.addEventListener('click', (e) => { if (e.target.closest('[data-atualizar]')) recarregar(); });
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!tinhaSW) return;
-    const digitando = document.activeElement?.matches?.('input, textarea, select, [contenteditable]');
-    let jaRecarregou = false; try { jaRecarregou = sessionStorage.getItem('viagem-recarregou') === '1'; } catch { /* sem armazenamento */ }
-    if (!digitando && !jaRecarregou && (Date.now() - aberto < 60e3 || document.visibilityState === 'hidden')) {
-      try { sessionStorage.setItem('viagem-recarregou', '1'); } catch { /* idem */ }
-      location.reload();
-    } else aviso('Saiu uma versão nova do app: feche e abra de novo (ou recarregue) para ver.');
+    if (ignorar) { ignorar = false; return; }
+    if (podeRecarregar() && (!mexeu || document.visibilityState === 'hidden')) { recarregar(); return; }
+    pendente = true; avisoFixo();
   });
-  addEventListener('load', () => setTimeout(() => { try { sessionStorage.removeItem('viagem-recarregou'); } catch { /* idem */ } }, 10e3));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { if (pendente && podeRecarregar()) recarregar(); return; }
+    mexeu = false;   // voltou ao app: até tocar em algo, conta como recém-aberto
+    if (pendente) avisoFixo();
+    // o celular deixa o app aberto por dias: ao voltar, confere se saiu versão nova (no máximo a cada 30 min)
+    if (Date.now() - conferido > 30 * 60e3) { conferido = Date.now(); reg.then((r) => r.update()).catch(() => {}); }
+  });
 }
 // no app da Tela de Início, pede para o navegador não apagar o que foi guardado
 if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) pedirPersistencia();
