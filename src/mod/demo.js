@@ -448,9 +448,9 @@ function cenasDoDia(d) {
     : F('km', U.fmtKm(P.km), `~${U.fmtH(T.estrada)} de motorhome (${U.fmtH(P.horas)} de carro; estimativa)`)];
   // devolução: se a programação (texto deste cartão) já diz a hora de sair, não põe a conta (seriam duas horas diferentes)
   const sProg = d.prazo ? saidaDaProg(a.programacao) : null;
-  if (d.prazo && !sProg) fatos.push(F('relogio', `Devolução até ${d.prazo}h:`, `com ~${U.fmtH(T.estrada)} de estrada, saia até ~${saidaAte(d, T)}`));
+  if (d.prazo && !sProg) fatos.push(F('relogio', `Devolução até ${U.fmtHora(d.prazo)}:`, `com ~${U.fmtH(T.estrada)} de estrada, saia até ~${saidaAte(d, T)}`));
   fatos.push(F('sol', 'Sol:', T.mudaFuso ? `nasce ${U.fmtHora(T.nasce)} (${T.ini.nome}) · põe ${U.fmtHora(T.poe)} (${T.fim.nome}), hora local`
-    : `nasce ${U.fmtHora(T.nasce)} · põe ${U.fmtHora(T.poe)} (${U.fmtH(T.luz)} de luz${d.livre_desde > T.nasce ? ` depois da retirada, às ${d.livre_desde}h` : ''})`));
+    : `nasce ${U.fmtHora(T.nasce)} · põe ${U.fmtHora(T.poe)} (${U.fmtH(T.luz)} de luz${d.livre_desde > T.nasce ? ` depois da retirada, às ${U.fmtHora(d.livre_desde)}` : ''})`));
   if (T.n) fatos.push(F('estrela', `${T.n} opciona${T.n > 1 ? 'is marcados' : 'l marcado'}`, `(+${U.fmtH(T.opc)})`));
   const cn = climaNoite(pn.ponto, d.data, 'no pernoite');
   if (cn) fatos.push(cn);
@@ -472,9 +472,9 @@ function cenasDoDia(d) {
   // 2. a saída
   const ini = itens[0], fIni = fotoComOp('p:' + ini.id, perto[0]);
   const fatosIni = [F('sol', 'Nascer do sol:', U.fmtHora(T.nasce))];
-  if (d.livre_desde) fatosIni.push(F('relogio', `A partir das ${d.livre_desde}h:`, 'retirada do veículo à tarde'));
-  if (d.prazo) fatosIni.push(sProg ? F('relogio', `Saída ${sProg[1]} ${sProg[2]}`, `para devolver até ${d.prazo}h`)
-    : F('relogio', `Saia até ~${saidaAte(d, T)}`, `para devolver até ${d.prazo}h`));
+  if (d.livre_desde) fatosIni.push(F('relogio', `A partir das ${U.fmtHora(d.livre_desde)}:`, 'retirada do veículo à tarde'));
+  if (d.prazo) fatosIni.push(sProg ? F('relogio', `Saída ${sProg[1]} ${sProg[2]}`, `para devolver até ${U.fmtHora(d.prazo)}`)
+    : F('relogio', `Saia até ~${saidaAte(d, T)}`, `para devolver até ${U.fmtHora(d.prazo)}`));
   if (!ini.fora) fatosIni.push(fatoAltitude(altitudeEm(R, 0)));
   // o texto do lugar (ou, sem ele, a nota curta do ponto); a nota do dia sem as frases que o texto já diz
   const txtIni = textoDe('p:' + ini.id) || maiusc(notas[ini.id] ?? '');

@@ -318,7 +318,7 @@ function desenhar(r) {
   if (op) linhas.push([op.tipo, op.o.nome, fmtKm(op.km - feito), op.fora > 0.5 ? `${fmtKm(op.fora)} fora da rota` : '']);
 
   let alerta = '';
-  if (!chegando && d.prazo && chegada > d.prazo) alerta = `Chegada depois das ${d.prazo}h, o prazo da devolução.`;
+  if (!chegando && d.prazo && chegada > d.prazo) alerta = `Chegada depois das ${fmtHora(d.prazo)}, o prazo da devolução.`;
   else if (!chegando && chegada > poe) {
     alerta = agora >= poe ? `O sol já se pôs: ${fmtKm(falta)} no escuro até o fim do trecho.`
       : `Chegada ~${fmtH(chegada - poe)} depois do pôr do sol: o fim do trecho fica no escuro.`;

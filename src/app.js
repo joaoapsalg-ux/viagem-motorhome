@@ -598,7 +598,7 @@ function htmlTempo(d) {
     // arredonda para baixo de 5 em 5 min
     const saida = Math.floor((d.prazo - T.estrada - 0.25) * 12) / 12;
     return `<section class="blk"><h3>Tempo do dia <span>${ICONE.sol}nasce ${fmtHora(T.nasce)}</span></h3>
-      <p class="cc-warn">Devolução até ${d.prazo}h: com ~${fmtH(T.estrada)} de estrada, saia até ~${fmtHora(saida)}${saida < T.nasce ? ', ainda no escuro' : ''}. Os opcionais deste dia são para depois da devolução, sem o veículo.</p></section>`;
+      <p class="cc-warn">Devolução até ${fmtHora(d.prazo)}: com ~${fmtH(T.estrada)} de estrada, saia até ~${fmtHora(saida)}${saida < T.nasce ? ', ainda no escuro' : ''}. Os opcionais deste dia são para depois da devolução, sem o veículo.</p></section>`;
   }
   const total = T.estrada + T.opc, sobra = T.luz - total, escala = Math.max(T.luz, total);
   const pc = (h) => `${Math.max(0, (h / escala) * 100).toFixed(1)}%`;
@@ -611,7 +611,7 @@ function htmlTempo(d) {
     <div class="tbar${sobra < 0 ? ' is-over' : ''}" role="img" aria-label="${esc(partes.join(' + '))}, de ${fmtH(T.luz)} de luz">
       <span class="tb-est" style="width:${pc(T.estrada)};--c:${corDia(d.n)}"></span><span class="tb-opc" style="width:${pc(T.opc)}"></span>
       <i class="tb-luz" style="left:${pc(T.luz)}"></i></div>
-    <p class="hint">${partes.join(' + ')}${T.n || T.estrada ? ` = ${fmtH(total)}` : ''}, de ${fmtH(T.luz)} de luz${d.livre_desde ? ` (a partir das ${d.livre_desde}h, depois da retirada)` : ''}. ${fim}</p>
+    <p class="hint">${partes.join(' + ')}${T.n || T.estrada ? ` = ${fmtH(total)}` : ''}, de ${fmtH(T.luz)} de luz${d.livre_desde ? ` (a partir das ${fmtHora(d.livre_desde)}, depois da retirada)` : ''}. ${fim}</p>
     </section>`;
 }
 /** lista dos opcionais do dia, com filtro por tipo */

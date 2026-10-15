@@ -4,10 +4,10 @@
   "fonte": "Planilha 'Viagem Motorhome Costa Oeste EUA - out-nov 2026' (07/09/2026), atualizada com a situação das estradas e parques em 04/10/2026.",
   "dias": [
     {
-      "n": 1, "data": "2026-10-19", "utc": [-7, -7], "livre_desde": 14, "semana": "seg", "de": "Los Angeles (LAX)", "para": "Joshua Tree", "estado": "CA",
+      "n": 1, "data": "2026-10-19", "utc": [-7, -7], "livre_desde": 14.5, "semana": "seg", "de": "Los Angeles (LAX)", "para": "Joshua Tree", "estado": "CA",
       "fuso": "Califórnia (PDT)", "km_planilha": 220, "horas_planilha": 2.7, "rota": "d01",
-      "programacao": "Pouso às 7h, retirada do veículo à tarde, mercado.",
-      "notas": "Dia curto por causa do jetlag: a retirada normalmente só libera à tarde. A locadora está no mapa no aeroporto, como aproximação: troque pelo endereço dela quando souber.",
+      "programacao": "Pouso às 7h, retirada do veículo na Indie Campers às 14h30, mercado.",
+      "notas": "Dia curto por causa do jetlag. O check-in online da Indie Campers (com passaporte e CNH) é obrigatório antes da retirada. A locadora está no mapa no aeroporto, como aproximação: o endereço da loja fica na área de cliente da Indie Campers.",
       "paradas": ["locadora", "jumbo_rocks"],
       "pernoite": { "ponto": "jumbo_rocks", "nome": "Jumbo Rocks", "tipo": "Parque", "alternativa": "Cottonwood / Black Rock", "preco": 25, "reserva": "recreation.gov", "notas": "Sem água nem hookups: chegue com os tanques cheios (a água mais perto fica no Oasis Visitor Center). Chegada à noite, então reserve para não procurar vaga no escuro." }
     },
@@ -122,22 +122,22 @@
       }
     },
     {
-      "n": 13, "data": "2026-10-31", "utc": [-7, -7], "prazo": 12, "semana": "sáb", "de": "Morro Bay", "para": "Los Angeles", "estado": "CA",
+      "n": 13, "data": "2026-10-31", "utc": [-7, -7], "prazo": 11.5, "semana": "sáb", "de": "Morro Bay", "para": "Los Angeles", "estado": "CA",
       "fuso": "Califórnia (PDT). O horário de verão acaba na madrugada de 01/11", "km_planilha": 320, "horas_planilha": 3.5, "rota": "d13",
-      "programacao": "Saída até ~6h30 (≈5h15 de motorhome até LA) para devolver o veículo até 12h, já abastecido e com os tanques esvaziados; depois, hotel perto do LAX.",
-      "notas": "Sábado: confirme o horário de devolução da locadora (até 12h). Halloween em LA: hotel reservado com antecedência. A locadora está no mapa no aeroporto, como aproximação: troque pelo endereço dela quando souber.",
+      "programacao": "Saída até ~6h (≈5h15 de motorhome até LA) para devolver o veículo até 11h30, já abastecido e com os tanques esvaziados; depois, hotel perto do LAX.",
+      "notas": "Sábado: a devolução na Indie Campers é até 11h30. Halloween em LA: hotel reservado com antecedência. A locadora está no mapa no aeroporto, como aproximação: o endereço da loja fica na área de cliente da Indie Campers.",
       "paradas": ["locadora", "hotel_lax"],
       "pernoite": { "ponto": "hotel_lax", "nome": "Hotel perto do LAX", "tipo": "Hotel", "alternativa": "", "preco": 160, "reserva": "Booking", "notas": "Veículo já devolvido. Escolha hotel com shuttle para o aeroporto." },
       "planoB": {
         "rota": "d13b", "titulo": "Saindo de Santa Bárbara", "acompanha": 12, "de": "Santa Bárbara",
         "quando": "Se o dia 12 for pelo plano B.",
-        "programacao": "Santa Bárbara → Los Angeles pela US-101 (155 km, ~2h25 de motorhome). Saída às 8h dá folga para devolver até 12h.",
+        "programacao": "Santa Bárbara → Los Angeles pela US-101 (155 km, ~2h25 de motorhome). Saída às 8h dá folga para devolver até 11h30.",
         "paradas": ["locadora", "hotel_lax"]
       }
     }
   ],
   "notasPontos": {
-    "locadora": "aproximado (aeroporto): troque pelo endereço da locadora",
+    "locadora": "Indie Campers; no mapa, aproximado (aeroporto): o endereço da loja está na área de cliente",
     "hotel_lax": "hotel a escolher; vá de shuttle ou Uber depois da devolução",
     "new_priest": "fique na CA-120; não pegue a Old Priest Grade",
     "blake_ranch": "endereço aproximado (saída 66 da I-40)",

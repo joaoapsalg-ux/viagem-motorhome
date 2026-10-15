@@ -92,8 +92,11 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 - Planos B: dia 6 começa no desvio por Hurricane (SR-9/túnel de Zion fechada por queda de rochas desde 30/09/2026);
   dia 9 (Tioga fechada → Bakersfield + Hwy 41, 762 km); dia 12 (Hwy 1 fechar → US-101, dorme em Santa Bárbara) e o
   dia 13 acompanha o 12. A escolha de cada um fica guardada no aparelho (`rota.N`).
-- A locadora (ponto `locadora`, saída do d01 e chegada do d13/d13b) está no aeroporto como aproximação: trocar as
-  coordenadas em tools/rotas_entrada.json quando souber o endereço e rodar o build_rotas.ps1. O pernoite do dia 13 é
+- Locadora: Indie Campers (Adventure Plus Select), retirada em LA em 19/10 às 14h30 (`livre_desde: 14.5`) e devolução
+  em 31/10 até 11h30 (`prazo: 11.5`; horas com fração saem com fmtHora). Dados lidos do Gmail do João em 14/10/2026
+  (conector Gmail): números de reserva e valores NÃO vão para o repositório. O ponto `locadora` (saída do d01 e
+  chegada do d13/d13b) está no aeroporto como aproximação: o endereço da loja só aparece na área de cliente da Indie
+  Campers; quando souber, trocar as coordenadas em tools/rotas_entrada.json e rodar o build_rotas.ps1. O pernoite do dia 13 é
   `hotel_lax` (separado). O d11 passa pelo ponto `new_priest` (New Priest Grade), que também vai no link do Google Maps.
 - Offline: os OpenFreeMap Terms proíbem baixar em massa sem permissão — o mapa normal só guarda o que foi visto. Para
   usar sem sinal há o pacote do USGS Topo (domínio público, exportação permitida; módulo pacote, no Sobre): Básico

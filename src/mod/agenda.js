@@ -76,6 +76,9 @@ function duracao(min) {
 }
 /** 6 → "6h"; 10, 10 → "10h10" */
 const hm = (h, m = 0) => `${h}h${m ? dois(m) : ''}`;
+/** 11.5 → { hora: 11, min: 30 } e "11h30" (prazo da devolução em horas com fração) */
+const horaMin = (h) => ({ hora: Math.floor(h), min: Math.round((h % 1) * 60) });
+const hmDe = (h) => { const x = horaMin(h); return hm(x.hora, x.min); };
 /** ['6', '12', '13'] → "6, 12 e 13" */
 const juntar = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} e ${a.at(-1)}` : a.join(''));
 
@@ -210,12 +213,12 @@ function eventoDevolucao(d) {
   if (!d.prazo) return null;
   const a = ctx.ativo(d), ini = ctx.usaB(d.n) ? DEVOLUCAO.inicioB : DEVOLUCAO.inicio, tz = fusoDe(d.estado);
   return {
-    uid: `devolucao-${ymd(d.data)}@${DOMINIO}`, resumo: `Devolver o motorhome (até ${d.prazo}h)`,
+    uid: `devolucao-${ymd(d.data)}@${DOMINIO}`, resumo: `Devolver o motorhome (até ${hmDe(d.prazo)})`,
     // a programação do plano A já fala do tanque; a do B, não
     desc: [a.programacao, /tanque/i.test(a.programacao ?? '') ? '' : 'Devolva já abastecido e com os tanques esvaziados.', a.notas, `No app: ${linkDia(d.n)}`].filter(Boolean).join('\n\n'),
     local: lugar('locadora', 'Locadora do motorhome (Los Angeles)'), url: linkDia(d.n),
-    inicio: { data: d.data, hora: ini, tz }, fim: { data: d.data, hora: d.prazo, tz },
-    alarme: { gatilho: duracao(-DEVOLUCAO.alarmeMin), texto: `Hoje: devolver o motorhome até ${d.prazo}h` },
+    inicio: { data: d.data, hora: ini, tz }, fim: { data: d.data, ...horaMin(d.prazo), tz },
+    alarme: { gatilho: duracao(-DEVOLUCAO.alarmeMin), texto: `Hoje: devolver o motorhome até ${hmDe(d.prazo)}` },
   };
 }
 /** voo de volta (sem número do voo: o repositório é público) */
@@ -274,7 +277,7 @@ function htmlResumo() {
     `<b>${dias.length} dias</b> como eventos de dia inteiro, na rota escolhida${comB.length ? ` (plano B ${comB.length > 1 ? 'nos dias' : 'no dia'} ${juntar(comB)})` : ''}`,
     nq ? `<b>★ ${nq}</b> opciona${nq > 1 ? 'is marcados' : 'l marcado'}, na descrição de cada dia` : '<b>Opcionais:</b> nenhum marcado ainda (marque com a estrela na ficha do dia)',
     lemb.length ? `<b>${lemb.length > 1 ? `${lemb.length} lembretes` : '1 lembrete'} às 19h</b> da véspera: ${juntar(lemb)}` : '',
-    dev ? `<b>Devolução:</b> ${fmtData(dev.data, dev.semana)}, ${hm(ctx.usaB(dev.n) ? DEVOLUCAO.inicioB : DEVOLUCAO.inicio)}–${dev.prazo}h, com alarme` : '',
+    dev ? `<b>Devolução:</b> ${fmtData(dev.data, dev.semana)}, ${hm(ctx.usaB(dev.n) ? DEVOLUCAO.inicioB : DEVOLUCAO.inicio)}–${hmDe(dev.prazo)}, com alarme` : '',
     vi ? `<b>Voo de volta:</b> ${fmtData(vi.data, semanaDe(vi.data))}${vi.hora != null ? `, ${hm(vi.hora, vi.min)} (LAX)${voo.alarme ? `, alarme às ${VOO_ALARME}h` : ''}` : ' (LAX)'}` : '',
   ].filter(Boolean);
   return `<ul class="agenda-lista">${itens.map((t) => `<li>${t}</li>`).join('')}</ul>`;

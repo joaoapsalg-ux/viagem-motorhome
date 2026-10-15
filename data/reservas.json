@@ -17,10 +17,10 @@
       "notas": "Sábado de Halloween. Escolha um com shuttle grátis para o aeroporto: o voo é às 10h10 de domingo e o horário de verão acaba nessa madrugada."
     },
     {
-      "id": "veiculo", "prioridade": "alta", "item": "Motorhome (Noovo Lite ou similar)",
-      "onde": { "texto": "Outdoorsy / OffGrid Campervans", "url": "https://www.outdoorsy.com/" },
-      "prazo": "2026-09-30", "custo_est": 3430, "dia": 1,
-      "notas": "Estimativa da planilha (12 diárias de listagem pública). Confirme: milhagem (~2.130 milhas), aquecedor, altura e largura, estrada de terra, horário de devolução no sábado (até 12h) e o que vem no kit."
+      "id": "veiculo", "prioridade": "alta", "item": "Motorhome Indie Campers (Adventure Plus Select)",
+      "onde": { "texto": "Área de cliente da Indie Campers", "url": "https://indiecampers.com/pt/client/my-trips" },
+      "prazo": "2026-10-18", "prazo_txt": "check-in online antes da retirada", "custo_est": 3430, "dia": 1,
+      "notas": "Retirada em Los Angeles em 19/10 às 14h30 e devolução em 31/10 até 11h30. O check-in online e o envio do passaporte e da CNH (verificação Persona) são obrigatórios antes da retirada. O endereço da loja está na área de cliente. Na retirada, confira o comprimento do veículo (a vaga do Mather tem 21 pés), aquecedor, estrada de terra e o que vem no kit. O custo é a estimativa da planilha, não o valor pago."
     },
     {
       "id": "passe", "prioridade": "alta", "item": "Passe anual de não residente",
@@ -56,7 +56,7 @@
       "id": "mather", "prioridade": "media", "item": "Mather Campground (Grand Canyon), 2 noites",
       "onde": { "texto": "recreation.gov", "url": "https://www.recreation.gov/search?q=Mather%20Campground" },
       "prazo": "2026-09-30", "custo_est": 50, "dia": 3, "noites": 2,
-      "notas": "Noites de 21 e 22/10. Só camping seco: sem torneiras, duchas nem lavanderia, com banheiros químicos (NPS, 30/09); a água só deve voltar depois de 16/11. O Trailer Village está fechado. Chegue com o galão cheio e os tanques vazios (encha e esvazie em Williams). Se precisar de ligação, RV park em Tusayan ou Williams."
+      "notas": "Noites de 21 e 22/10. Só camping seco: sem torneiras, duchas nem lavanderia (NPS, 30/09); o aviso da Recreation.gov de 14/10 diz também que os banheiros do camping e o dump e a água do Camper Services estão fechados, e que fogueira e carvão estão proibidos (fogareiro a gás pode). A água só deve voltar depois de 16/11. O Trailer Village está fechado. Chegue com o galão cheio e os tanques vazios (encha e esvazie em Williams ou Tusayan). Se precisar de ligação, RV park em Tusayan ou Williams."
     },
     {
       "id": "jumbo-rocks", "prioridade": "media", "item": "Jumbo Rocks (Joshua Tree)",
