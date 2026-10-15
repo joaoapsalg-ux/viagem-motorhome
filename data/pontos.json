@@ -1,7 +1,7 @@
 {
   "lax": {"nome":"Aeroporto LAX","lat":33.9416,"lon":-118.4085},
-  "locadora": {"nome":"Locadora (endereço a confirmar)","lat":33.9416,"lon":-118.4085},
-  "hotel_lax": {"nome":"Hotel perto do LAX","lat":33.9456,"lon":-118.387},
+  "locadora": {"nome":"Indie Campers (endereço a confirmar)","lat":33.9416,"lon":-118.4085},
+  "hotel_lax": {"nome":"Huntley Santa Monica Beach (hotel)","lat":34.0188,"lon":-118.5011},
   "new_priest": {"nome":"New Priest Grade (CA-120)","lat":37.82435,"lon":-120.28304},
   "jumbo_rocks": {"nome":"Jumbo Rocks Campground","lat":33.9918,"lon":-116.0624},
   "hidden_valley": {"nome":"Hidden Valley","lat":34.0124,"lon":-116.168},
@@ -24,6 +24,7 @@
   "mt_carmel": {"nome":"Mount Carmel Junction","lat":37.2236,"lon":-112.6812},
   "canyon_overlook": {"nome":"Canyon Overlook","lat":37.2131,"lon":-112.9411},
   "watchman": {"nome":"Watchman Campground","lat":37.1985,"lon":-112.9867},
+  "white_bison": {"nome":"Zion White Bison Resort (Virgin)","lat":37.2024,"lon":-113.1941},
   "zion_vc": {"nome":"Centro de visitantes de Zion (shuttle)","lat":37.2001,"lon":-112.9869},
   "zion_lodge": {"nome":"Zion Lodge (Emerald Pools)","lat":37.2509,"lon":-112.9567},
   "sinawava": {"nome":"Temple of Sinawava (Riverside Walk)","lat":37.2851,"lon":-112.9479},

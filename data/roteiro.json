@@ -46,25 +46,25 @@
     {
       "n": 6, "data": "2026-10-24", "utc": [-7, -6], "semana": "sáb", "de": "Page", "para": "Zion", "estado": "UT",
       "fuso": "Utah (MDT): 1 h à frente do Arizona", "km_planilha": 190, "horas_planilha": 2.7, "rota": "d06",
-      "programacao": "Via Kanab e pelo túnel Zion–Mount Carmel; Canyon Overlook à tarde.",
+      "programacao": "Via Kanab e pelo túnel Zion–Mount Carmel; Canyon Overlook à tarde; dorme em Virgin, depois de Springdale.",
       "notas": "Túnel sem escolta desde 07/06/2026: só passam veículos até 2,39 m de largura (com espelhos), 3,45 m de altura e 10,9 m de comprimento.",
-      "paradas": ["kanab", "mt_carmel", "canyon_overlook", "watchman"],
-      "pernoite": { "ponto": "watchman", "nome": "Watchman Campground", "tipo": "Parque", "alternativa": "Zion Canyon Campground (Springdale)", "preco": 30, "reserva": "recreation.gov", "notas": "Aberto o ano todo, com reserva. Fica do lado sul: dá para chegar mesmo com o túnel fechado." },
+      "paradas": ["kanab", "mt_carmel", "canyon_overlook", "white_bison"],
+      "pernoite": { "ponto": "white_bison", "nome": "Zion White Bison Resort (Virgin)", "tipo": "RV park", "alternativa": "Zion River Resort (Virgin)", "reserva": "direto com o resort", "notas": "Vaga pull-through de até 35 pés com ligação completa (água, luz e esgoto): bom para encher a água e esvaziar os tanques. Check-in a partir das 13h; saída até 11h. Fica a ~25 km (30 min) do Watchman." },
       "planoB": {
         "rota": "d06b", "titulo": "Entrada sul, por Hurricane",
         "quando": "Enquanto a estrada do túnel (SR-9) estiver fechada, ou se o veículo não couber no túnel.",
-        "programacao": "Kanab, Fredonia, AZ-389, UT-59, Hurricane e UT-9 até Springdale. O Canyon Overlook fica no trecho fechado.",
-        "paradas": ["kanab", "fredonia", "hurricane", "watchman"]
+        "programacao": "Kanab, Fredonia, AZ-389, UT-59 e Hurricane, e a UT-9 até Virgin. O Canyon Overlook fica no trecho fechado.",
+        "paradas": ["kanab", "fredonia", "hurricane", "white_bison"]
       },
       "usarB": "A SR-9 (túnel e entrada leste) está fechada desde 30/09/2026 por uma queda de rochas, sem previsão de reabertura em 02/10."
     },
     {
       "n": 7, "data": "2026-10-25", "utc": [-6, -6], "semana": "dom", "de": "Zion", "para": "Zion", "estado": "UT",
       "fuso": "Utah (MDT)", "km_planilha": 40, "horas_planilha": 0.7, "rota": "d07",
-      "programacao": "Shuttle pelo cânion: Emerald Pools (Zion Lodge) e Riverside Walk (Temple of Sinawava).",
-      "notas": "O veículo fica no camping: a estrada do cânion é só do shuttle. Horário reduzido a partir de 25/10: saídas do centro de visitantes das 7h às 17h; o último ônibus deixa o Temple of Sinawava às 18h15.",
-      "paradas": ["zion_vc", "zion_lodge", "sinawava"],
-      "pernoite": { "ponto": "watchman", "nome": "Watchman Campground", "tipo": "Parque", "alternativa": "Zion Canyon Campground", "preco": 30, "reserva": "recreation.gov", "notas": "Segunda noite. A pé do centro de visitantes e do shuttle." }
+      "programacao": "De manhã, ~25 km de Virgin até o Watchman pela UT-9; depois, shuttle pelo cânion: Emerald Pools (Zion Lodge) e Riverside Walk (Temple of Sinawava).",
+      "notas": "O check-in do Watchman é a partir das 12h: se chegar antes, confirme no camping onde deixar o motorhome até a vaga liberar. O veículo fica no camping: a estrada do cânion é só do shuttle. Horário reduzido a partir de 25/10: saídas do centro de visitantes das 7h às 17h; o último ônibus deixa o Temple of Sinawava às 18h15.",
+      "paradas": ["watchman", "zion_vc", "zion_lodge", "sinawava"],
+      "pernoite": { "ponto": "watchman", "nome": "Watchman Campground", "tipo": "Parque", "alternativa": "Zion Canyon Campground", "preco": 30, "reserva": "recreation.gov", "notas": "Uma noite (25/10). A pé do centro de visitantes e do shuttle. Gerador proibido; o dump fica no próprio camping." }
     },
     {
       "n": 8, "data": "2026-10-26", "utc": [-6, -7], "semana": "seg", "de": "Zion", "para": "Death Valley", "estado": "NV/CA",
@@ -125,9 +125,9 @@
       "n": 13, "data": "2026-10-31", "utc": [-7, -7], "prazo": 11.5, "semana": "sáb", "de": "Morro Bay", "para": "Los Angeles", "estado": "CA",
       "fuso": "Califórnia (PDT). O horário de verão acaba na madrugada de 01/11", "km_planilha": 320, "horas_planilha": 3.5, "rota": "d13",
       "programacao": "Saída até ~6h (≈5h15 de motorhome até LA) para devolver o veículo até 11h30, já abastecido e com os tanques esvaziados; depois, hotel perto do LAX.",
-      "notas": "Sábado: a devolução na Indie Campers é até 11h30. Halloween em LA: hotel reservado com antecedência. A locadora está no mapa no aeroporto, como aproximação: o endereço da loja fica na área de cliente da Indie Campers.",
+      "notas": "Sábado: a devolução na Indie Campers é até 11h30. Halloween: a última noite é em Santa Monica, perto do píer. A locadora está no mapa no aeroporto, como aproximação: o endereço da loja fica na área de cliente da Indie Campers.",
       "paradas": ["locadora", "hotel_lax"],
-      "pernoite": { "ponto": "hotel_lax", "nome": "Hotel perto do LAX", "tipo": "Hotel", "alternativa": "", "preco": 160, "reserva": "Booking", "notas": "Veículo já devolvido. Escolha hotel com shuttle para o aeroporto." },
+      "pernoite": { "ponto": "hotel_lax", "nome": "Huntley Santa Monica Beach", "tipo": "Hotel", "alternativa": "", "reserva": "Booking", "notas": "Veículo já devolvido: da locadora, Uber ou táxi. Check-in a partir das 15h e saída até 12h; caução de US$ 100 no cartão na chegada. Para o voo das 10h10 de domingo, saia por volta das 7h (~30–45 min até o LAX); o hotel leva ao aeroporto por US$ 120, combinando antes." },
       "planoB": {
         "rota": "d13b", "titulo": "Saindo de Santa Bárbara", "acompanha": 12, "de": "Santa Bárbara",
         "quando": "Se o dia 12 for pelo plano B.",
@@ -138,7 +138,8 @@
   ],
   "notasPontos": {
     "locadora": "Indie Campers; no mapa, aproximado (aeroporto): o endereço da loja está na área de cliente",
-    "hotel_lax": "hotel a escolher; vá de shuttle ou Uber depois da devolução",
+    "hotel_lax": "Huntley Santa Monica Beach; de Uber ou táxi depois da devolução",
+    "white_bison": "RV park em Virgin, com ligação completa",
     "new_priest": "fique na CA-120; não pegue a Old Priest Grade",
     "blake_ranch": "endereço aproximado (saída 66 da I-40)",
     "kingman_centro": "Route 66, centro histórico",

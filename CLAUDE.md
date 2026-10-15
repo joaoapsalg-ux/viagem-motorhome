@@ -89,6 +89,9 @@ tools/make_icons.ps1  ícones PNG (System.Drawing)
 ## Decisões
 
 - Tempos: OSRM é tempo de carro; o app mostra também "motorhome" = carro × 1,25 (estimativa, dito na tela).
+- Pernoites conferidos nos e-mails (15/10): dia 6 no Zion White Bison Resort, em Virgin (ponto `white_bison`,
+  coordenadas do campendium.com); dia 7 no Watchman (só 25/10), e o d07 começa em Virgin (carro até o Watchman,
+  depois o shuttle); dia 13 no Huntley Santa Monica Beach (o ponto continua com o id `hotel_lax`).
 - Planos B: dia 6 começa no desvio por Hurricane (SR-9/túnel de Zion fechada por queda de rochas desde 30/09/2026);
   dia 9 (Tioga fechada → Bakersfield + Hwy 41, 762 km); dia 12 (Hwy 1 fechar → US-101, dorme em Santa Bárbara) e o
   dia 13 acompanha o 12. A escolha de cada um fica guardada no aparelho (`rota.N`).
